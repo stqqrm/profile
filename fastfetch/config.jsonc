@@ -1,0 +1,53 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": { "type": "small" },
+  "modules": [
+
+    // ── Title ───────────────────────────────
+    //"title",
+    //"break",
+
+    // ── System ──────────────────────────────
+    { "type": "custom", "format": "\u001b[1;32mSystem" },
+    { "type": "os",           "key": "\u001b[1;33m  OS" },
+    // { "type": "host",         "key": "  Host" },
+    { "type": "kernel",       "key": "\u001b[1;33m  Kernel" },
+    //{ "type": "uptime",       "key": "  Uptime" },
+    //{ "type": "packages",     "key": "  Packages" },
+    //{ "type": "locale",       "key": "  Locale" },
+
+    "break",
+
+    // ── Desktop ─────────────────────────────
+    { "type": "custom", "format": "\u001b[1;32mDesktop" },
+    { "type": "shell",        "key": "\u001b[1;33m  Shell" },
+    { "type": "terminal",     "key": "\u001b[1;33m  Terminal" },
+    { "type": "terminalfont", "key": "\u001b[1;33m  Term Font" },
+    { "type": "de",           "key": "\u001b[1;33m  DE" },
+    { "type": "wm",           "key": "\u001b[1;33m  WM" },
+    { "type": "wmtheme",      "key": "\u001b[1;33m  WM Theme" },
+    { "type": "theme",        "key": "\u001b[1;33m  Theme" },
+    { "type": "icons",        "key": "\u001b[1;33m  Icons" },
+    { "type": "font",         "key": "\u001b[1;33m  Font" },
+    { "type": "cursor",       "key": "\u001b[1;33m  Cursor" },
+
+    "break",
+
+    // ── Hardware ────────────────────────────
+    { "type": "custom", "format": "\u001b[1;32mHardware" },
+    { "type": "board",        "key": "\u001b[1;33m  board" },
+    { "type": "cpu",          "key": "\u001b[1;33m  CPU" },
+    { "type": "gpu",          "key": "\u001b[1;33m  GPU" },
+    { "type": "memory",       "key": "\u001b[1;33m  Memory" },
+    // { "type": "swap",         "key": "  Swap" },
+    { "type": "disk",         "key": "\u001b[1;33m  Disk" },
+    { "type": "display",      "key": "\u001b[1;33m  Display" },
+    { "type": "battery",      "key": "\u001b[1;33m  Battery" },
+    { "type": "poweradapter", "key": "\u001b[1;33m  Power" },
+    //{ "type": "localip",      "key": "  Local IP" },
+
+    "break",
+
+    "colors"
+  ]
+}
