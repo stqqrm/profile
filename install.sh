@@ -6,3 +6,5 @@ ln /etc/vim/vimrc ../
 
 cp -r tmux/ /etc/
 ln /etc/tmux/tmux.conf ../
+
+exit
