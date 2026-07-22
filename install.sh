@@ -21,3 +21,10 @@ ln /etc/vim/vimrc /etc/
 
 cp -r tmux/ /etc/
 ln /etc/tmux/tmux.conf /etc/
+
+
+cp vtrgb.service /etc/systemd/system/
+
+systemctl daemon-reload
+systemctl enable vtrgb.service
+systemctl start vtrgb.service
