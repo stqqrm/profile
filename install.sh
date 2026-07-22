@@ -26,10 +26,10 @@ sudo mkdir -p /etc/fish
 sudo cp fish/config.fish /etc/fish/config.fish
 
 sudo cp -r vim /etc/vim
-sudo ln -sf /etc/vim/vimrc /etc/vimrc
+sudo ln /etc/vim/vimrc /etc/vimrc
 
 sudo cp -r tmux /etc/tmux
-sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
+sudo ln /etc/tmux/tmux.conf /etc/tmux.conf
 
 sudo chmod +x /etc/tmux/tmux-vt
 
