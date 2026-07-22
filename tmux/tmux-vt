@@ -1,0 +1,9 @@
+#!/bin/sh
+
+vt=$(ps -o tty= -p "$(ps -o ppid= -p $$)" | tr -d ' ')
+
+case "$vt" in
+    tty[0-9]*)
+        printf '#[fg=brightblack]| #[fg=brightyellow]%s ' "$vt"
+        ;;
+esac

@@ -29,3 +29,4 @@ ln /etc/vim/vimrc /etc/
 
 cp -r tmux/ /etc/
 ln /etc/tmux/tmux.conf /etc/
+chmod +x /etc/tmux/tmux-vt
