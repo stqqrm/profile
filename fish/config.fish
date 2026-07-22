@@ -202,23 +202,23 @@ if status is-interactive
 end
 
 function fish_prompt
-	set_color yellow
+	set_color -o yellow
 	echo -n $USER
 
 	set_color normal
 	echo -n '@'
 
-	set_color green
+	set_color -o green
 	echo -n (uname -n)
 
-	set_color normal
+	set_color -o normal
 	echo -n ' '
 
 	if test (pwd) = $HOME
-		set_color yellow
+		set_color -o yellow
 		echo -n '~'
 	else
-		set_color yellow
+		set_color -o yellow
 		echo -n '$'
 	end
 

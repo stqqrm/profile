@@ -32,7 +32,7 @@ let s:tokens = {
 \ 'bg_popup':    ['#212020', 'Black'],
 \ 'border':      ['#3e3c3b', 'DarkGray'],
 \ 'line_nr':     ['#555352', 'DarkGray'],
-\ 'visual':      ['#243142', 'Black'],
+\ 'visual':      ['#243142', 'DarkBlue'],
 \
 \ 'diff_add_bg':    ['#25331f', 'DarkGreen'],
 \ 'diff_change_bg': ['#382f1d', 'DarkYellow'],
@@ -58,6 +58,10 @@ let s:tokens['warn']     = s:tokens['yellow']
 let s:tokens['info']     = s:tokens['blue']
 let s:tokens['hint']     = s:tokens['cyan']
 let s:tokens['ok']       = s:tokens['green']
+
+" 16-color tty fix: same gui color as br_black, but a cterm name that
+" won't collide with backgrounds that use br_black's cterm value (DarkGray)
+let s:tokens['muted_alt'] = ['#52504f', 'Black']
 
 " Terminal colors
 let g:terminal_ansi_colors = [
@@ -109,12 +113,12 @@ call s:hi('PmenuSel',		'black',	'keyword',	'')
 call s:hi('PmenuSbar',		'',			'border',	'')
 call s:hi('PmenuThumb',		'',			'br_black',	'')
 call s:hi('StatusLine',		'white',	'bg_alt',	'bold')
-call s:hi('StatusLineNC',	'br_black',	'bg_alt',	'')
+call s:hi('StatusLineNC',	'muted_alt',	'bg_alt',	'')
 call s:hi('VertSplit',		'border',	'bg',		'')
-call s:hi('TabLine',		'br_black',	'bg_alt',	'')
+call s:hi('TabLine',		'muted_alt',	'bg_alt',	'')
 call s:hi('TabLineSel',		'white',	'bg',		'')
 call s:hi('TabLineFill',	'',			'bg_alt',	'')
-call s:hi('Folded',			'br_black',	'bg_float',	'italic')
+call s:hi('Folded',			'muted_alt',	'bg_float',	'italic')
 call s:hi('FoldColumn',		'br_black',	'bg',		'')
 call s:hi('NonText',		'border',	'NONE',		'')
 call s:hi('SpecialKey',		'border',	'NONE',		'')
