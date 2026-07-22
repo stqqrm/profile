@@ -1,12 +1,23 @@
 #!/bin/sh
 
-vt=$(ps -eo pid,tty,cmd | awk -v p=$$ '
-$1 == p { found=1 }
-found && $2 ~ /^tty[0-9]+$/ { print $2; exit }
-')
+# 1. Grab the PID of the actual tmux server process specifically
+server_pid=$(pgrep -u "$USER" -f '^tmux.*server' | head -n 1)
 
+# Fallback to standard pgrep if the pattern above doesn't catch it
+[ -z "$server_pid" ] && server_pid=$(pgrep -o tmux)
+
+# 2. Return early if tmux server PID couldn't be found
+[ -z "$server_pid" ] && exit 0
+
+# 3. Get the controlling terminal name without trailing/leading spaces
+vt=$(ps -o tty= -p "$server_pid" 2>/dev/null | tr -d ' ')
+
+# 4. Handle valid terminals (matches tty1-9 as well as pts/0, etc.)
 case "$vt" in
-    tty[0-9]*)
+    tty[0-9]*|pts/[0-9]*)
         printf '#[fg=brightblack]| #[fg=brightcyan]%s ' "$vt"
+        ;;
+    *)
+        # If launched detached or without a TTY, don't output anything
         ;;
 esac

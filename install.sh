@@ -1,32 +1,36 @@
+#!/bin/bash
+set -e
+
 sudo pacman -S --needed terminus-font nodejs npm clang universal-ctags
 
-# Set gruvbox theme for 16-color palette
-cp vtrgb /etc/
-cp vtrgb.service /etc/systemd/system/
+# Install TTY color palette
+sudo cp vtrgb /etc/vtrgb
+sudo cp vtrgb.service /etc/systemd/system/vtrgb.service
 
-systemctl daemon-reload
-systemctl enable vtrgb.service
-systemctl start vtrgb.service
+sudo systemctl daemon-reload
+sudo systemctl enable vtrgb.service
+sudo systemctl restart vtrgb.service
 
+# Remove old configs
+sudo rm -f /etc/vconsole.conf
+sudo rm -f /etc/fish/config.fish
+sudo rm -rf /etc/vim
+sudo rm -f /etc/vimrc
+sudo rm -rf /etc/tmux
+sudo rm -f /etc/tmux.conf
 
-rm /etc/vconsole.conf
+# Install new configs
+sudo cp vconsole.conf /etc/vconsole.conf
 
-rm /etc/fish/config.fish
+sudo mkdir -p /etc/fish
+sudo cp fish/config.fish /etc/fish/config.fish
 
-rm -r /etc/vim
-rm /etc/vimrc
+sudo cp -r vim /etc/vim
+sudo ln -sf /etc/vim/vimrc /etc/vimrc
 
-rm -r /etc/tmux
-rm /etc/tmux.conf
+sudo cp -r tmux /etc/tmux
+sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
 
+sudo chmod +x /etc/tmux/tmux-vt
 
-cp vconsole.conf /etc/
-
-cp fish/config.fish /etc/fish/
-
-cp -r vim/ /etc/
-ln /etc/vim/vimrc /etc/
-
-cp -r tmux/ /etc/
-ln /etc/tmux/tmux.conf /etc/
-chmod +x /etc/tmux/tmux-vt
+tmux source /etc/tmux/tmux.conf
