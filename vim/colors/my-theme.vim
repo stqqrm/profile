@@ -1,5 +1,8 @@
 " my-theme.vim - Gruvbox Material Muted Pastel Edition
-" Requires: set termguicolors in vimrc
+" 16-color palette only - no guifg/guibg, no termguicolors required.
+" The actual displayed hues come entirely from your terminal/console's own
+" 16-slot ANSI palette (Alacritty config, /etc/vtrgb, etc.) - configure the
+" palette there to match Gruvbox Material; this file only assigns names.
 
 set background=dark
 highlight clear
@@ -14,32 +17,32 @@ if !exists('g:my_theme_transparent')
 endif
 
 " 1. Token Definition Registry
-" Each token contains [gui_color, cterm_color]
+" Each token is a single cterm (16-color ANSI name) value - no gui hex.
 let s:tokens = {
-\ 'black':       ['#32302f', 'Black'],
-\ 'red':         ['#ea6962', 'Red'],
-\ 'green':       ['#a9b665', 'Green'],
-\ 'yellow':      ['#d8a657', 'Yellow'],
-\ 'blue':        ['#7daea3', 'Blue'],
-\ 'magenta':     ['#d3869b', 'Magenta'],
-\ 'cyan':        ['#89b482', 'Cyan'],
-\ 'white':       ['#d4be98', 'White'],
-\ 'br_black':    ['#52504f', 'DarkGray'],
+\ 'black':       'Black',
+\ 'red':         'Red',
+\ 'green':       'Green',
+\ 'yellow':      'Yellow',
+\ 'blue':        'Blue',
+\ 'magenta':     'Magenta',
+\ 'cyan':        'Cyan',
+\ 'white':       'White',
+\ 'br_black':    'DarkGray',
 \
-\ 'bg':          [g:my_theme_transparent ? 'NONE' : '#030000', g:my_theme_transparent ? 'NONE' : 'Black'],
-\ 'bg_alt':      ['#2a2827', 'DarkGray'],
-\ 'bg_float':    ['#252322', 'DarkGray'],
-\ 'bg_popup':    ['#212020', 'Black'],
-\ 'border':      ['#3e3c3b', 'DarkGray'],
-\ 'line_nr':     ['#555352', 'DarkGray'],
-\ 'visual':      ['#243142', 'DarkBlue'],
+\ 'bg':          g:my_theme_transparent ? 'NONE' : 'Black',
+\ 'bg_alt':      'DarkGray',
+\ 'bg_float':    'DarkGray',
+\ 'bg_popup':    'Black',
+\ 'border':      'DarkGray',
+\ 'line_nr':     'DarkGray',
+\ 'visual':      'DarkBlue',
 \
-\ 'diff_add_bg':    ['#25331f', 'DarkGreen'],
-\ 'diff_change_bg': ['#382f1d', 'DarkYellow'],
-\ 'diff_delete_bg': ['#361f1f', 'DarkRed'],
-\ 'diff_text_bg':   ['#213333', 'DarkCyan'],
+\ 'diff_add_bg':    'DarkGreen',
+\ 'diff_change_bg': 'DarkYellow',
+\ 'diff_delete_bg': 'DarkRed',
+\ 'diff_text_bg':   'DarkCyan',
 \
-\ 'NONE':        ['NONE', 'NONE']
+\ 'NONE':        'NONE'
 \ }
 
 " Semantic Aliases
@@ -59,41 +62,36 @@ let s:tokens['info']     = s:tokens['blue']
 let s:tokens['hint']     = s:tokens['cyan']
 let s:tokens['ok']       = s:tokens['green']
 
-" 16-color tty fix: same gui color as br_black, but a cterm name that
-" won't collide with backgrounds that use br_black's cterm value (DarkGray)
-let s:tokens['muted_alt'] = ['#52504f', 'Black']
+" 16-color tty fix: distinct cterm name from br_black (DarkGray), used
+" where text would otherwise sit on a DarkGray background and vanish
+let s:tokens['muted_alt'] = 'Black'
 
-" Terminal colors
-let g:terminal_ansi_colors = [
-\ s:tokens['black'][0], s:tokens['red'][0], s:tokens['green'][0], s:tokens['yellow'][0],
-\ s:tokens['blue'][0], s:tokens['magenta'][0], s:tokens['cyan'][0], s:tokens['white'][0],
-\ s:tokens['br_black'][0], s:tokens['red'][0], s:tokens['green'][0], s:tokens['yellow'][0],
-\ s:tokens['blue'][0], s:tokens['magenta'][0], s:tokens['cyan'][0], s:tokens['white'][0]
-\ ]
+" No g:terminal_ansi_colors here anymore - that variable needs hex RGB
+" values to program Neovim/Vim's :terminal palette, which this theme no
+" longer carries. Configure your terminal emulator (e.g. Alacritty) and/or
+" /etc/vtrgb directly with the Gruvbox Material palette instead.
 
-" 2. Refactored Highlight Function
+" 2. Refactored Highlight Function (cterm/16-color only)
 function! s:hi(group, fg_token, bg_token, attr)
 	let l:cmd = 'highlight ' . a:group
 
 	" Handle Foreground
 	if a:fg_token != '' && has_key(s:tokens, a:fg_token)
-		let l:cmd .= ' guifg=' . s:tokens[a:fg_token][0] . ' ctermfg=' . s:tokens[a:fg_token][1]
+		let l:cmd .= ' ctermfg=' . s:tokens[a:fg_token]
 	endif
 
 	" Handle Background
 	if a:bg_token != '' && has_key(s:tokens, a:bg_token)
-		let l:cmd .= ' guibg=' . s:tokens[a:bg_token][0] . ' ctermbg=' . s:tokens[a:bg_token][1]
+		let l:cmd .= ' ctermbg=' . s:tokens[a:bg_token]
 	endif
 
 	" Handle Attributes
 	if a:attr != ''
 		" Many terminals/multiplexers don't support italic (SGR 3) and
 		" silently substitute reverse video instead - a full fg/bg swap,
-		" which is far more jarring than just losing the slant. Keep
-		" italic for gui (native GUI vim, or terminals that do support
-		" it properly), but never request it over cterm.
+		" which is far more jarring than just losing the slant.
 		let l:cterm_attr = (a:attr ==# 'italic') ? 'NONE' : a:attr
-		let l:cmd .= ' gui=' . a:attr . ' cterm=' . l:cterm_attr
+		let l:cmd .= ' cterm=' . l:cterm_attr
 	endif
 
 	execute l:cmd
