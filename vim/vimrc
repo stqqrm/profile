@@ -32,6 +32,7 @@ set noswapfile
 set relativenumber nu
 set signcolumn=yes
 set smartcase
+set nowrap
 set history=10000
 if has('persistent_undo')
     set undofile
@@ -40,13 +41,17 @@ endif
 filetype plugin indent on
 syntax on
 
+nnoremap + *
+nnoremap ö /
+nnoremap ä ?
+
 augroup cppman_lookup
     autocmd!
     autocmd FileType c,cpp setlocal keywordprg=cppman
 augroup END
 
 " Tab settings 
-set expandtab
+"set expandtab
 set tabstop=4
 set shiftwidth=4
 set softtabstop=4
@@ -66,6 +71,7 @@ nnoremap <F12> :source /etc/vimrc<CR>
 " sudo pacman -S nodejs npm clang universal-ctags
 source /etc/vim/plug.vim
 source /etc/vim/coc.vim
+source /etc/vim/bex.vim
 
 set background=dark
 

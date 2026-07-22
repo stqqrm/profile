@@ -3,14 +3,15 @@ let g:coc_user_config = {'inlayHint.enable': v:false}
 
 " --- CoC settings --- 
 let g:coc_user_config = {
-  \ 'semanticTokens.enable': v:true
+  \ "semanticTokens.enable": v:true,
+  \ "inlayHint.enable": v:false
 \ }
-
 " --- CoC extensions --- 
 let g:coc_global_extensions = ['coc-clangd']
 
 " --- Completion --- 
 " Ctrl+F triggers completion; if menu is visible, confirm selection
+nnoremap <silent> K :call CocActionAsync('doHover')<CR>
 inoremap <silent><expr> <C-f>
 	  \ coc#pum#visible() ? coc#pum#confirm() : coc#refresh()
 inoremap <silent><expr> <Up>   coc#pum#visible() ? coc#pum#prev(1) : "\<Up>"
