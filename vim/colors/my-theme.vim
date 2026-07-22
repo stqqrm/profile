@@ -27,7 +27,7 @@ let s:tokens = {
 \ 'magenta':     'Magenta',
 \ 'cyan':        'Cyan',
 \ 'white':       'White',
-\ 'br_black':    'DarkGray',
+\ 'br_black':    8,
 \
 \ 'bg':          g:my_theme_transparent ? 'NONE' : 'Black',
 \ 'bg_alt':      'DarkGray',
