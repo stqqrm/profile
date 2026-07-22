@@ -1,5 +1,13 @@
 sudo pacman -S --needed terminus-font nodejs npm clang universal-ctags
 
+# Set gruvbox theme for 16-color palette
+cp vtrgb /etc/
+cp vtrgb.service /etc/systemd/system/
+
+systemctl daemon-reload
+systemctl enable vtrgb.service
+systemctl start vtrgb.service
+
 
 rm /etc/vconsole.conf
 
@@ -21,10 +29,3 @@ ln /etc/vim/vimrc /etc/
 
 cp -r tmux/ /etc/
 ln /etc/tmux/tmux.conf /etc/
-
-
-cp vtrgb.service /etc/systemd/system/
-
-systemctl daemon-reload
-systemctl enable vtrgb.service
-systemctl start vtrgb.service
