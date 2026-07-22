@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-sudo pacman -S --needed terminus-font nodejs npm clang universal-ctags
+sudo pacman -S --needed terminus-font nodejs npm clang universal-ctags fzf
 
 # Install TTY color palette
 sudo cp vtrgb /etc/vtrgb
