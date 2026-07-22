@@ -75,10 +75,6 @@ source /etc/vim/bex.vim
 
 set background=dark
 
-if has('termguicolors')
-	set termguicolors
-endif
-
 set runtimepath+=/etc/vim
 source /etc/vim/colors/my-theme.vim
 
