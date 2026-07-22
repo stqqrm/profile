@@ -87,7 +87,13 @@ function! s:hi(group, fg_token, bg_token, attr)
 
 	" Handle Attributes
 	if a:attr != ''
-		let l:cmd .= ' gui=' . a:attr . ' cterm=' . a:attr
+		" Many terminals/multiplexers don't support italic (SGR 3) and
+		" silently substitute reverse video instead - a full fg/bg swap,
+		" which is far more jarring than just losing the slant. Keep
+		" italic for gui (native GUI vim, or terminals that do support
+		" it properly), but never request it over cterm.
+		let l:cterm_attr = (a:attr ==# 'italic') ? 'NONE' : a:attr
+		let l:cmd .= ' gui=' . a:attr . ' cterm=' . l:cterm_attr
 	endif
 
 	execute l:cmd
