@@ -1,9 +1,12 @@
 #!/bin/sh
 
-vt=$(ps -o tty= -p "$(ps -o ppid= -p $$)" | tr -d ' ')
+vt=$(ps -eo pid,tty,cmd | awk -v p=$$ '
+$1 == p { found=1 }
+found && $2 ~ /^tty[0-9]+$/ { print $2; exit }
+')
 
 case "$vt" in
     tty[0-9]*)
-        printf '#[fg=brightblack]| #[fg=brightyellow]%s ' "$vt"
+        printf '#[fg=brightblack]| #[fg=brightcyan]%s ' "$vt"
         ;;
 esac
