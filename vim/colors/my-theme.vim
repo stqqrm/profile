@@ -31,20 +31,30 @@ endif
 
 " 1. Token Definition Registry
 " Each token is a single cterm (16-color ANSI code) value - no gui hex.
-" Bright-set codes (8-15) are used explicitly by number, since Vim's named
-" colors (Red, Green, ...) map to its own historical cterm table rather
-" than the standard terminal ANSI bright slots - using the numbers directly
-" guarantees we hit the real bright colors 8-15 in your terminal palette.
+" Base colors are the standard 0-7 slots; 'br_' prefixed tokens are their
+" bright 8-15 counterparts (e.g. red=1 / br_red=9), same convention as
+" bex.vim. This theme's main palette is built on the bright half (8-15),
+" since Vim's named colors (Red, Green, ...) map to its own historical
+" cterm table rather than the standard terminal ANSI bright slots - using
+" the numbers directly guarantees we hit the real bright colors in your
+" terminal palette.
 let s:tokens = {
-      \ 'black': 0,
-      \ 'red': 9,
-      \ 'green': 10,
-      \ 'yellow': 11,
-      \ 'blue': 12,
-      \ 'magenta': 13,
-      \ 'cyan': 14,
-      \ 'white': 15,
-      \ 'br_black': 8,
+      \ 'black':      0,
+      \ 'red':        1,
+      \ 'green':      2,
+      \ 'yellow':     3,
+      \ 'blue':       4,
+      \ 'magenta':    5,
+      \ 'cyan':       6,
+      \ 'white':      7,
+      \ 'br_black':   8,
+      \ 'br_red':     9,
+      \ 'br_green':   10,
+      \ 'br_yellow':  11,
+      \ 'br_blue':    12,
+      \ 'br_magenta': 13,
+      \ 'br_cyan':    14,
+      \ 'br_white':   15,
       \
       \ 'bg': g:my_theme_transparent ? 'NONE' : 0,
       \ 'bg_alt': 8,
@@ -62,22 +72,22 @@ let s:tokens = {
       \ 'NONE': 'NONE'
       \ }
 
-" Semantic Aliases
-let s:tokens['keyword']   = s:tokens['red']
-let s:tokens['func']      = s:tokens['yellow']
-let s:tokens['type']      = s:tokens['blue']
-let s:tokens['lvar']      = s:tokens['white']
-let s:tokens['string']    = s:tokens['magenta']
-let s:tokens['number']    = s:tokens['green']
+" Semantic Aliases (main palette uses the bright 8-15 tokens)
+let s:tokens['keyword']   = s:tokens['br_red']
+let s:tokens['func']      = s:tokens['br_yellow']
+let s:tokens['type']      = s:tokens['br_blue']
+let s:tokens['lvar']      = s:tokens['br_white']
+let s:tokens['string']    = s:tokens['br_magenta']
+let s:tokens['number']    = s:tokens['br_green']
 let s:tokens['comment']   = s:tokens['br_black']
-let s:tokens['operator']  = s:tokens['cyan']
+let s:tokens['operator']  = s:tokens['br_cyan']
 let s:tokens['preproc']   = s:tokens['br_black']
-let s:tokens['special']   = s:tokens['cyan']
-let s:tokens['error']     = s:tokens['red']
-let s:tokens['warn']      = s:tokens['yellow']
-let s:tokens['info']      = s:tokens['blue']
-let s:tokens['hint']      = s:tokens['cyan']
-let s:tokens['ok']        = s:tokens['green']
+let s:tokens['special']   = s:tokens['br_cyan']
+let s:tokens['error']     = s:tokens['br_red']
+let s:tokens['warn']      = s:tokens['br_yellow']
+let s:tokens['info']      = s:tokens['br_blue']
+let s:tokens['hint']      = s:tokens['br_cyan']
+let s:tokens['ok']        = s:tokens['br_green']
 
 " 16-color tty fix: distinct cterm value from br_black (8), used
 " where text would otherwise sit on a DarkGray background and vanish
@@ -95,7 +105,8 @@ let s:tokens['muted_alt'] = 0
 " token (8-15) is meaningless - ctermfg=12 has no 9th-15th slot to draw
 " from. We fold it back to its base ANSI color (n - 8) and add 'bold',
 " which is the traditional way 8-color terminals simulate a "bright"
-" variant.
+" variant. Callers never pass 'bold' explicitly - it is added here, and
+" only here, so it only ever appears in the 8-color fallback case.
 function! s:hi(group, fg_token, bg_token, attr)
   let l:cmd = 'highlight ' . a:group
   let l:attrs = []
@@ -144,27 +155,27 @@ endfunction
 " 3. Highlighting Definitions
 set cursorline
 
-call s:hi('Normal', 'white', 'bg', 'NONE')
-call s:hi('NormalFloat', 'white', 'bg_popup', '')
+call s:hi('Normal', 'br_white', 'bg', 'NONE')
+call s:hi('NormalFloat', 'br_white', 'bg_popup', '')
 call s:hi('SignColumn', 'br_black', 'bg', '')
 call s:hi('ColorColumn', '', 'bg_float', '')
 call s:hi('CursorLine', '', 'bg', 'NONE')
-call s:hi('CursorLineNr', 'yellow', 'bg', 'NONE')
+call s:hi('CursorLineNr', 'br_yellow', 'bg', 'NONE')
 call s:hi('LineNr', 'line_nr', 'bg', '')
-call s:hi('Visual', 'white', 'visual', '')
-call s:hi('VisualNOS', 'white', 'visual', '')
-call s:hi('Search', 'white', 'visual', '')
-call s:hi('IncSearch', 'white', 'visual', '')
-call s:hi('MatchParen', 'red', 'NONE', 'NONE')
-call s:hi('Pmenu', 'white', 'bg_popup', '')
+call s:hi('Visual', 'br_white', 'visual', '')
+call s:hi('VisualNOS', 'br_white', 'visual', '')
+call s:hi('Search', 'br_white', 'visual', '')
+call s:hi('IncSearch', 'br_white', 'visual', '')
+call s:hi('MatchParen', 'br_red', 'NONE', 'NONE')
+call s:hi('Pmenu', 'br_white', 'bg_popup', '')
 call s:hi('PmenuSel', 'black', 'keyword', '')
 call s:hi('PmenuSbar', '', 'border', '')
 call s:hi('PmenuThumb', '', 'br_black', '')
-call s:hi('StatusLine', 'white', 'bg_alt', 'bold')
+call s:hi('StatusLine', 'br_white', 'bg_alt', '')
 call s:hi('StatusLineNC', 'muted_alt', 'bg_alt', '')
 call s:hi('VertSplit', 'border', 'bg', '')
 call s:hi('TabLine', 'muted_alt', 'bg_alt', '')
-call s:hi('TabLineSel', 'white', 'bg', '')
+call s:hi('TabLineSel', 'br_white', 'bg', '')
 call s:hi('TabLineFill', '', 'bg_alt', '')
 call s:hi('Folded', 'muted_alt', 'bg_float', 'italic')
 call s:hi('FoldColumn', 'br_black', 'bg', '')
@@ -178,7 +189,7 @@ call s:hi('MoreMsg', 'ok', 'NONE', '')
 call s:hi('ErrorMsg', 'error', 'NONE', '')
 call s:hi('WarningMsg', 'warn', 'NONE', '')
 call s:hi('WildMenu', 'black', 'keyword', '')
-call s:hi('Cursor', 'black', 'white', '')
+call s:hi('Cursor', 'black', 'br_white', '')
 call s:hi('EndOfBuffer', 'border', 'NONE', '')
 
 call s:hi('Statement', 'keyword', 'NONE', 'NONE')
@@ -218,11 +229,11 @@ call s:hi('Error', 'error', 'NONE', 'NONE')
 call s:hi('Todo', 'warn', 'NONE', 'italic')
 
 call s:hi('cppBoolean', 'number', 'NONE', 'NONE')
-call s:hi('cIncluded', 'yellow', 'NONE', 'NONE')
-call s:hi('Namespace', 'white', 'NONE', 'NONE')
-call s:hi('cCustomNamespace', 'white', 'NONE', 'NONE')
-call s:hi('cppModifier', 'white', 'NONE', 'NONE')
-call s:hi('ScopedIdentifier', 'white', 'NONE', 'NONE')
+call s:hi('cIncluded', 'br_yellow', 'NONE', 'NONE')
+call s:hi('Namespace', 'br_white', 'NONE', 'NONE')
+call s:hi('cCustomNamespace', 'br_white', 'NONE', 'NONE')
+call s:hi('cppModifier', 'br_white', 'NONE', 'NONE')
+call s:hi('ScopedIdentifier', 'br_white', 'NONE', 'NONE')
 call s:hi('cType', 'type', 'NONE', 'NONE')
 call s:hi('cCustomType', 'type', 'NONE', 'NONE')
 
@@ -238,7 +249,7 @@ call s:hi('CocErrorVirtualText', 'error', 'NONE', 'italic')
 call s:hi('CocWarningVirtualText', 'warn', 'NONE', 'italic')
 call s:hi('CocInfoVirtualText', 'info', 'NONE', 'italic')
 call s:hi('CocHintVirtualText', 'hint', 'NONE', 'italic')
-call s:hi('CocFloating', 'white', 'bg_popup', '')
+call s:hi('CocFloating', 'br_white', 'bg_popup', '')
 call s:hi('CocFloatSbar', '', 'border', '')
 call s:hi('CocFloatThumb', '', 'br_black', '')
 call s:hi('CocFloatDivider', 'border', 'bg_popup', '')
@@ -248,62 +259,62 @@ call s:hi('CocInlayHint', 'br_black', 'bg_popup', 'italic')
 call s:hi('CocFadeOut', 'br_black', 'NONE', 'italic')
 call s:hi('CocCodeLens', 'br_black', 'NONE', 'italic')
 
-call s:hi('CocSemTypeClass', 'cyan', 'NONE', 'NONE')
-call s:hi('CocSemTypeStruct', 'cyan', 'NONE', 'NONE')
-call s:hi('CocSemTypeClassModDefaultLibrary', 'cyan', 'NONE', 'NONE')
-call s:hi('CocSemTypeFunctionModDefaultLibrary', 'yellow', 'NONE', 'NONE')
-call s:hi('CocSemTypeEnum', 'cyan', 'NONE', 'NONE')
-call s:hi('CocSemTypeEnumMember', 'green', 'NONE', 'NONE')
-call s:hi('CocSemTypeString', 'magenta', 'NONE', 'NONE')
-call s:hi('CocSemTypeNumber', 'green', 'NONE', 'NONE')
-call s:hi('CocSemTypeInterface', 'cyan', 'NONE', 'NONE')
-call s:hi('CocSemTypeTypeParameter', 'cyan', 'NONE', 'NONE')
+call s:hi('CocSemTypeClass', 'br_cyan', 'NONE', 'NONE')
+call s:hi('CocSemTypeStruct', 'br_cyan', 'NONE', 'NONE')
+call s:hi('CocSemTypeClassModDefaultLibrary', 'br_cyan', 'NONE', 'NONE')
+call s:hi('CocSemTypeFunctionModDefaultLibrary', 'br_yellow', 'NONE', 'NONE')
+call s:hi('CocSemTypeEnum', 'br_cyan', 'NONE', 'NONE')
+call s:hi('CocSemTypeEnumMember', 'br_green', 'NONE', 'NONE')
+call s:hi('CocSemTypeString', 'br_magenta', 'NONE', 'NONE')
+call s:hi('CocSemTypeNumber', 'br_green', 'NONE', 'NONE')
+call s:hi('CocSemTypeInterface', 'br_cyan', 'NONE', 'NONE')
+call s:hi('CocSemTypeTypeParameter', 'br_cyan', 'NONE', 'NONE')
 call s:hi('CocSemTypeType', 'type', 'NONE', 'NONE')
 call s:hi('CocSemTypeTypedef', 'type', 'NONE', 'NONE')
-call s:hi('CocSemTypeNamespace', 'white', 'NONE', 'NONE')
+call s:hi('CocSemTypeNamespace', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeFunction', 'func', 'NONE', 'NONE')
 call s:hi('CocSemTypeMethod', 'func', 'NONE', 'NONE')
 call s:hi('CocSemTypeParameter', 'br_black', 'NONE', 'NONE')
 call s:hi('CocSemTypeVariable', 'lvar', 'NONE', 'NONE')
 call s:hi('CocSemTypeProperty', 'lvar', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModGlobalScope', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModGlobalScopeDeclaration', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModFileScope', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModFileScopeDeclaration', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModStatic', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModStaticDeclaration', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeModVariableGlobalScope', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeModVariableGlobalScopeDeclaration', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeModVariableFileScope', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeModVariableStatic', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeModPropertyStatic', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeMacro', 'magenta', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModGlobalScope', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModGlobalScopeDeclaration', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModFileScope', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModFileScopeDeclaration', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModStatic', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModStaticDeclaration', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeModVariableGlobalScope', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeModVariableGlobalScopeDeclaration', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeModVariableFileScope', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeModVariableStatic', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeModPropertyStatic', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeMacro', 'br_magenta', 'NONE', 'NONE')
 call s:hi('CocSemTypeKeyword', 'keyword', 'NONE', 'NONE')
 call s:hi('CocSemTypeComment', 'comment', 'NONE', 'italic')
 call s:hi('CocSemTypeOperator', 'operator', 'NONE', 'NONE')
-call s:hi('CocSemTypeOperatorModKeyword', 'white', 'NONE', 'NONE')
-call s:hi('CocSemTypeModOperatorKeyword', 'white', 'NONE', 'NONE')
+call s:hi('CocSemTypeOperatorModKeyword', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeModOperatorKeyword', 'br_white', 'NONE', 'NONE')
 
 call s:hi('DiffAdd', 'ok', 'diff_add_bg', '')
 call s:hi('DiffChange', 'warn', 'diff_change_bg', '')
 call s:hi('DiffDelete', 'error', 'diff_delete_bg', '')
-call s:hi('DiffText', 'white', 'diff_text_bg', 'NONE')
+call s:hi('DiffText', 'br_white', 'diff_text_bg', 'NONE')
 
 call s:hi('SpellBad', '', '', 'undercurl')
 call s:hi('SpellCap', '', '', 'undercurl')
 call s:hi('SpellRare', '', '', 'undercurl')
 call s:hi('SpellLocal', '', '', 'undercurl')
 
-call s:hi('CocTarget', 'white', 'visual', '')
+call s:hi('CocTarget', 'br_white', 'visual', '')
 
 " Fix LSP / CoC document highlights (word under cursor matching)
-call s:hi('LspReferenceText', 'white', 'visual', '')
-call s:hi('LspReferenceRead', 'white', 'visual', '')
-call s:hi('LspReferenceWrite', 'white', 'visual', '')
+call s:hi('LspReferenceText', 'br_white', 'visual', '')
+call s:hi('LspReferenceRead', 'br_white', 'visual', '')
+call s:hi('LspReferenceWrite', 'br_white', 'visual', '')
 
 " Fix QuickFix active selection line
-call s:hi('QuickFixLine', 'white', 'visual', '')
-call s:hi('CocHighlightText', 'white', 'visual', '')
+call s:hi('QuickFixLine', 'br_white', 'visual', '')
+call s:hi('CocHighlightText', 'br_white', 'visual', '')
 
 " If using CoC, ensure its internal target highlights match too
 highlight! link CocHighlightText Visual
