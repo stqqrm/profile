@@ -22,13 +22,29 @@ if has('gui_running')
 	set guioptions -=T
 endif
 
+
+set list
+function! SetDynamicListChars()
+    " Fallback to tabstop if shiftwidth is set to 0 (default in Vim)
+    let l:sw = &shiftwidth == 0 ? &tabstop : &shiftwidth
+    let &l:listchars = 'trail:·,tab:│ ,multispace:┆' . repeat(' ', l:sw - 1)
+endfunction
+
+augroup DynamicListChars
+    autocmd!
+    autocmd OptionSet shiftwidth,tabstop call SetDynamicListChars()
+    autocmd BufEnter,FileType * call SetDynamicListChars()
+    autocmd VimEnter * nested call SetDynamicListChars()
+augroup END
+
+" Force run once immediately on Vim startup for the initial buffer
+call SetDynamicListChars()
+
 " Misc 
 set nocompatible
 set hlsearch
 set showmode
 let mapleader = " "
-set list
-set listchars=tab:\ \ \~
 set clipboard=unnamedplus
 set noswapfile
 set relativenumber nu
@@ -53,12 +69,10 @@ augroup cppman_lookup
 augroup END
 
 " Tab settings 
-"set expandtab
-set tabstop=4
+set expandtab
 set shiftwidth=4
 set softtabstop=4
-set autoindent
-set smartindent
+set tabstop=4
 
 " Ensure cursor is centered
 augroup ForceScrolloff
@@ -90,13 +104,13 @@ augroup BexCustomExplorer
 augroup END
 
 function! s:LoadBexExplorer()
-  	let l:dir = expand('%:p')
-  	" Wipe the empty, dummy Netrw/Directory placeholder buffer safely
-  	let l:dummy_buf = bufnr('%')
-  	setlocal buftype=nofile bufhidden=wipe noswapfile
-  	execute 'Bex ' . fnameescape(l:dir)
-  	" Clean up the trailing empty buffer references if needed
-  	if bufexists(l:dummy_buf) | execute 'bwipeout ' . l:dummy_buf | endif
+    let l:dir = expand('%:p')
+    " Wipe the empty, dummy Netrw/Directory placeholder buffer safely
+    let l:dummy_buf = bufnr('%')
+    setlocal buftype=nofile bufhidden=wipe noswapfile
+    execute 'Bex ' . fnameescape(l:dir)
+    " Clean up the trailing empty buffer references if needed
+    if bufexists(l:dummy_buf) | execute 'bwipeout ' . l:dummy_buf | endif
 endfunction
 
 nnoremap <leader>e :Bex<CR>
@@ -112,4 +126,4 @@ vnoremap <PageUp> <C-u>
 " --- Fuzzy find --- 
 nnoremap <C-p> :Files<CR>
 nnoremap <C-b> :Buffers<CR>
-nnoremap <C-t> :Tags<CR>   
+nnoremap <C-t> :Tags<CR>
