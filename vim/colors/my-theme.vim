@@ -52,7 +52,7 @@ let s:tokens = {
       \ 'bg_popup': 0,
       \ 'border': 8,
       \ 'line_nr': 8,
-      \ 'visual': 1,
+      \ 'visual': 12,
       \
       \ 'diff_add_bg': 2,
       \ 'diff_change_bg': 6,
