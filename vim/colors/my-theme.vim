@@ -3,6 +3,20 @@
 " The actual displayed hues come entirely from your terminal/console's own
 " 16-slot ANSI palette (Alacritty config, /etc/vtrgb, etc.) - configure the
 " palette there to match Gruvbox Material; this file only assigns names.
+"
+" 8-color fallback: if &t_Co < 16 (e.g. raw Linux tty with $TERM=linux),
+" any bright token (numeric cterm 8-15) is folded down to its base 0-7
+" ANSI color and gets 'bold' added to preserve some visual distinction.
+"
+" All tokens use raw numeric ANSI indices (0-15), never Vim's named
+" colors (Black, DarkGray, DarkBlue, ...). Named colors are NOT stable
+" across color-mode: Vim resolves them to literal ANSI 0-15 only when
+" &t_Co is 8 or 16, but routes them through a separate, fixed xterm-256
+" grayscale/cube lookup table once &t_Co reaches 256 (e.g. under tmux) -
+" a table your terminal's customizable ANSI palette does NOT override.
+" Raw numbers bypass that inconsistency and always target the literal
+" ANSI index, so your terminal/vtrgb palette applies consistently in
+" every mode.
 
 set background=dark
 highlight clear
@@ -32,18 +46,18 @@ let s:tokens = {
       \ 'white': 15,
       \ 'br_black': 8,
       \
-      \ 'bg': g:my_theme_transparent ? 'NONE' : 'Black',
-      \ 'bg_alt': 'DarkGray',
-      \ 'bg_float': 'DarkGray',
-      \ 'bg_popup': 'Black',
-      \ 'border': 'DarkGray',
-      \ 'line_nr': 'DarkGray',
-      \ 'visual': 'DarkBlue',
+      \ 'bg': g:my_theme_transparent ? 'NONE' : 0,
+      \ 'bg_alt': 8,
+      \ 'bg_float': 8,
+      \ 'bg_popup': 0,
+      \ 'border': 8,
+      \ 'line_nr': 8,
+      \ 'visual': 1,
       \
-      \ 'diff_add_bg': 'DarkGreen',
-      \ 'diff_change_bg': 'DarkYellow',
-      \ 'diff_delete_bg': 'DarkRed',
-      \ 'diff_text_bg': 'DarkCyan',
+      \ 'diff_add_bg': 2,
+      \ 'diff_change_bg': 6,
+      \ 'diff_delete_bg': 4,
+      \ 'diff_text_bg': 3,
       \
       \ 'NONE': 'NONE'
       \ }
@@ -65,36 +79,63 @@ let s:tokens['info']      = s:tokens['blue']
 let s:tokens['hint']      = s:tokens['cyan']
 let s:tokens['ok']        = s:tokens['green']
 
-" 16-color tty fix: distinct cterm name from br_black (DarkGray), used
+" 16-color tty fix: distinct cterm value from br_black (8), used
 " where text would otherwise sit on a DarkGray background and vanish
-let s:tokens['muted_alt'] = 'Black'
+let s:tokens['muted_alt'] = 0
 
 " No g:terminal_ansi_colors here anymore - that variable needs hex RGB
 " values to program Neovim/Vim's :terminal palette, which this theme no
 " longer carries. Configure your terminal emulator (e.g. Alacritty) and/or
 " /etc/vtrgb directly with the Gruvbox Material palette instead.
 
-" 2. Refactored Highlight Function (cterm/16-color only)
+" 2. Refactored Highlight Function (cterm/16-color only, with 8-color fallback)
+"
+" On terminals reporting &t_Co < 16 (e.g. the raw Linux console with
+" $TERM=linux, which only ever advertises 8 colors), a numeric bright
+" token (8-15) is meaningless - ctermfg=12 has no 9th-15th slot to draw
+" from. We fold it back to its base ANSI color (n - 8) and add 'bold',
+" which is the traditional way 8-color terminals simulate a "bright"
+" variant.
 function! s:hi(group, fg_token, bg_token, attr)
   let l:cmd = 'highlight ' . a:group
+  let l:attrs = []
 
-  " Handle Foreground
-  if a:fg_token != '' && has_key(s:tokens, a:fg_token)
-    let l:cmd .= ' ctermfg=' . s:tokens[a:fg_token]
-  endif
-
-  " Handle Background
-  if a:bg_token != '' && has_key(s:tokens, a:bg_token)
-    let l:cmd .= ' ctermbg=' . s:tokens[a:bg_token]
-  endif
-
-  " Handle Attributes
   if a:attr != ''
     " Many terminals/multiplexers don't support italic (SGR 3) and
     " silently substitute reverse video instead - a full fg/bg swap,
     " which is far more jarring than just losing the slant.
-    let l:cterm_attr = (a:attr ==# 'italic') ? 'NONE' : a:attr
-    let l:cmd .= ' cterm=' . l:cterm_attr
+    call add(l:attrs, (a:attr ==# 'italic') ? 'NONE' : a:attr)
+  endif
+
+  " Handle Foreground
+  if a:fg_token != '' && has_key(s:tokens, a:fg_token)
+    let l:fg = s:tokens[a:fg_token]
+    if type(l:fg) == v:t_number && &t_Co < 16 && l:fg >= 8 && l:fg <= 15
+      let l:fg = l:fg - 8
+      if index(l:attrs, 'bold') < 0
+        call add(l:attrs, 'bold')
+      endif
+    endif
+    let l:cmd .= ' ctermfg=' . l:fg
+  endif
+
+  " Handle Background
+  if a:bg_token != '' && has_key(s:tokens, a:bg_token)
+    let l:bg = s:tokens[a:bg_token]
+    if type(l:bg) == v:t_number && &t_Co < 16 && l:bg >= 8 && l:bg <= 15
+      let l:bg = l:bg - 8
+    endif
+    let l:cmd .= ' ctermbg=' . l:bg
+  endif
+
+  " Handle Attributes
+  if !empty(l:attrs)
+    " NONE should only ever appear alone - if a real attribute (e.g. a
+    " 'bold' added by the fold-down above) is also present, drop NONE.
+    if len(l:attrs) > 1
+      call filter(l:attrs, 'v:val !=# "NONE"')
+    endif
+    let l:cmd .= ' cterm=' . join(l:attrs, ',')
   endif
 
   execute l:cmd
