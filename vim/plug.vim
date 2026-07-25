@@ -9,6 +9,7 @@ endif
 " --- Plugins ---
 call plug#begin('~/.vim/plugged')
 	Plug 'neoclide/coc.nvim', {'branch': 'release'}
+	Plug 'dense-analysis/ale'
 	Plug 'jiangmiao/auto-pairs'
 	Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 	Plug 'junegunn/fzf.vim'
