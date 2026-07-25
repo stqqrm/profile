@@ -31,5 +31,13 @@ sudo ln -sf /etc/vim/vimrc /etc/vimrc
 sudo cp -r tmux /etc/tmux
 sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
 
+# Make sure fish is a valid login shell
+if ! grep -qx "$(command -v fish)" /etc/shells; then
+    echo "$(command -v fish)" | sudo tee -a /etc/shells >/dev/null
+fi
+
+# Change the invoking user's default shell
+chsh -s "$(command -v fish)"
+
 fish -c "source /etc/fish/config.fish"
 echo "Installation complete."
