@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
 
-sudo pacman -S --needed terminus-font gvim tmux fish nodejs npm clang universal-ctags fzf
+sudo pacman -S --needed terminus-font gvim tmux fish nodejs npm clang universal-ctags fzf fastfetch
+
+sudo cp -r fastfetch /etc/fastfetch
 
 # Install TTY color palette
 sudo cp vtrgb /etc/vtrgb
