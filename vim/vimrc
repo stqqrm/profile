@@ -54,10 +54,19 @@ set signcolumn=yes
 set smartcase
 set nowrap
 set history=10000
+
+" Persistent undo
 if has('persistent_undo')
+    if !isdirectory(expand('~/.vim/undodir'))
+        call mkdir(expand('~/.vim/undodir'), 'p', 0700)
+    endif
+
     set undofile
     set undodir=~/.vim/undodir
+    set undolevels=1000
 endif
+
+
 filetype plugin indent on
 syntax on
 
