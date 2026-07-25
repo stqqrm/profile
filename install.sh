@@ -3,8 +3,6 @@ set -e
 
 sudo pacman -S --needed terminus-font gvim tmux fish nodejs npm clang universal-ctags fzf fastfetch
 
-sudo cp -r fastfetch /etc/fastfetch
-
 # Install TTY color palette
 sudo cp vtrgb /etc/vtrgb
 sudo cp vtrgb.service /etc/systemd/system/vtrgb.service
@@ -20,6 +18,7 @@ sudo rm -rf /etc/vim
 sudo rm -f /etc/vimrc
 sudo rm -rf /etc/tmux
 sudo rm -f /etc/tmux.conf
+sudo rm -rf /etc/fastfetch
 
 # Install new configs
 sudo cp vconsole.conf /etc/vconsole.conf
@@ -32,6 +31,8 @@ sudo ln -sf /etc/vim/vimrc /etc/vimrc
 
 sudo cp -r tmux /etc/tmux
 sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
+
+sudo cp -r fastfetch /etc/fastfetch
 
 # Make sure fish is a valid login shell
 if ! grep -qx "$(command -v fish)" /etc/shells; then
