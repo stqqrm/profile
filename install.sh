@@ -32,3 +32,4 @@ sudo cp -r tmux /etc/tmux
 sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
 
 fish -c "source /etc/fish/config.fish"
+echo "Installation complete."
