@@ -31,4 +31,4 @@ sudo ln /etc/vim/vimrc /etc/vimrc
 sudo cp -r tmux /etc/tmux
 sudo ln /etc/tmux/tmux.conf /etc/tmux.conf
 
-source /etc/fish/config.fish
+fish -c "source /etc/fish/config.fish"
