@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 sudo pacman -S --needed terminus-font gvim tmux fish nodejs npm clang universal-ctags fzf fastfetch
 
