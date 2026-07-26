@@ -40,7 +40,7 @@ if ! grep -qx "$(command -v fish)" /etc/shells; then
 fi
 
 # Change the invoking user's default shell
-chsh -s "$(command -v fish)"
+sudo chsh -s "$(command -v fish)" $USER
 
 fish -c "source /etc/fish/config.fish"
 echo "Installation complete."
