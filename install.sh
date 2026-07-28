@@ -45,4 +45,4 @@ fi
 sudo chsh -s "$(command -v fish)" $USER
 
 fish -c "source /etc/fish/config.fish"
-echo "Installation complete."
+printf '\033[32mInstallation complete.\033[0m\n'
