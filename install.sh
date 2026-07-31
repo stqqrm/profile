@@ -8,10 +8,13 @@ sudo pacman -S --needed terminus-font gvim tmux fish nodejs npm clang universal-
 # Install TTY color palette
 sudo cp vtrgb /etc/vtrgb
 sudo cp vtrgb.service /etc/systemd/system/vtrgb.service
+sudo cp vtrgb.path /etc/systemd/system/vtrgb.path
 
 sudo systemctl daemon-reload
 sudo systemctl enable vtrgb.service
+sudo systemctl enable vtrgb.path
 sudo systemctl restart vtrgb.service
+sudo systemctl restart vtrgb.path
 
 # Remove old configs
 sudo rm -f /etc/vconsole.conf
