@@ -27,6 +27,15 @@ set fileencoding=utf-8
 
 set list
 function! SetDynamicListChars()
+    " Disable 'list' and exit if the buffer is not modifiable or writable
+    if !&l:modifiable || filewritable(expand('%:p')) != 1
+        setlocal nolist
+        return
+    endif
+
+    " Enable 'list' for writable files
+    setlocal list
+
     " Fallback to tabstop if shiftwidth is set to 0 (default in Vim)
     let l:sw = &shiftwidth == 0 ? &tabstop : &shiftwidth
     let &l:listchars = 'trail:·,tab:│ ,multispace:┆' . repeat(' ', l:sw - 1)
@@ -125,6 +134,11 @@ function! s:LoadBexExplorer()
 endfunction
 
 nnoremap <leader>e :Bex<CR>
+
+let g:ale_linters = {
+\   'cpp': ['clangd'],
+\   'c': ['clangd'],
+\}
 
 " Page navigation
 nnoremap <PageDown> <C-d>
