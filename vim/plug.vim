@@ -14,7 +14,8 @@ call plug#begin('~/.vim/plugged')
 	Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 	Plug 'junegunn/fzf.vim'
 	Plug 'stqqrm/bex.vim'
-    Plug 'wellle/context.vim'
+	Plug 'stqqrm/clangd-manager.vim'
+	Plug 'wellle/context.vim'
 call plug#end()
 
 " --- Auto-install missing plugins ---
