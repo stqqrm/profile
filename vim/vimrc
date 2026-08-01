@@ -134,6 +134,7 @@ function! s:LoadBexExplorer()
 endfunction
 
 nnoremap <leader>e :Bex<CR>
+nnoremap <leader>w :ClangdManager<CR>
 
 let g:ale_linters = {
 \   'cpp': ['clangd'],
