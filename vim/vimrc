@@ -112,7 +112,7 @@ source /etc/vim/bex.vim
 set background=dark
 
 set runtimepath+=/etc/vim
-source /etc/vim/colors/my-theme.vim
+source /etc/vim/colors/gruvbox.vim
 
 " Completely disable Netrw
 let g:loaded_netrw       = 1
