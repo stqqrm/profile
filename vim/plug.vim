@@ -1,4 +1,4 @@
-" --- Bootstrap vim-plug --- 
+" Bootstrap plug.vim 
 let plug_file = expand('~/.vim/autoload/plug.vim')
 if empty(glob(plug_file))
 	silent execute '!curl -fLo ' . plug_file . ' --create-dirs
@@ -6,7 +6,6 @@ if empty(glob(plug_file))
 	autocmd VimEnter * PlugInstall --sync | source /etc/vimrc
 endif
 
-" --- Plugins ---
 call plug#begin('~/.vim/plugged')
 	Plug 'neoclide/coc.nvim', {'branch': 'release'}
 	Plug 'dense-analysis/ale'
