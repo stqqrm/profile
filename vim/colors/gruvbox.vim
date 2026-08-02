@@ -8,7 +8,7 @@ endif
 let g:colors_name = "gruvbox"
 
 if !exists('g:my_theme_transparent')
-  let g:my_theme_transparent = 0
+  let g:my_theme_transparent = 1
 endif
 
 " 1. Token Definition Registry (0-15 ANSI Indices)
@@ -30,7 +30,7 @@ let s:tokens = {
       \ 'br_cyan':    14,
       \ 'br_white':   15,
       \
-      \ 'bg': g:my_theme_transparent ? 'NONE' : 0,
+      \ 'bg': g:my_theme_transparent && !has('gui_running') ? 'NONE' : 0,
       \ 'bg_alt': 8,
       \ 'bg_float': 8,
       \ 'bg_popup': 0,
