@@ -1,22 +1,4 @@
 " my-theme.vim - Gruvbox Material Muted Pastel Edition
-" 16-color palette only - no guifg/guibg, no termguicolors required.
-" The actual displayed hues come entirely from your terminal/console's own
-" 16-slot ANSI palette (Alacritty config, /etc/vtrgb, etc.) - configure the
-" palette there to match Gruvbox Material; this file only assigns names.
-"
-" 8-color fallback: if &t_Co < 16 (e.g. raw Linux tty with $TERM=linux),
-" any bright token (numeric cterm 8-15) is folded down to its base 0-7
-" ANSI color and gets 'bold' added to preserve some visual distinction.
-"
-" All tokens use raw numeric ANSI indices (0-15), never Vim's named
-" colors (Black, DarkGray, DarkBlue, ...). Named colors are NOT stable
-" across color-mode: Vim resolves them to literal ANSI 0-15 only when
-" &t_Co is 8 or 16, but routes them through a separate, fixed xterm-256
-" grayscale/cube lookup table once &t_Co reaches 256 (e.g. under tmux) -
-" a table your terminal's customizable ANSI palette does NOT override.
-" Raw numbers bypass that inconsistency and always target the literal
-" ANSI index, so your terminal/vtrgb palette applies consistently in
-" every mode.
 
 set background=dark
 highlight clear
@@ -29,15 +11,7 @@ if !exists('g:my_theme_transparent')
   let g:my_theme_transparent = 0
 endif
 
-" 1. Token Definition Registry
-" Each token is a single cterm (16-color ANSI code) value - no gui hex.
-" Base colors are the standard 0-7 slots; 'br_' prefixed tokens are their
-" bright 8-15 counterparts (e.g. red=1 / br_red=9), same convention as
-" bex.vim. This theme's main palette is built on the bright half (8-15),
-" since Vim's named colors (Red, Green, ...) map to its own historical
-" cterm table rather than the standard terminal ANSI bright slots - using
-" the numbers directly guarantees we hit the real bright colors in your
-" terminal palette.
+" 1. Token Definition Registry (0-15 ANSI Indices)
 let s:tokens = {
       \ 'black':      0,
       \ 'red':        1,
@@ -72,7 +46,7 @@ let s:tokens = {
       \ 'NONE': 'NONE'
       \ }
 
-" Semantic Aliases (main palette uses the bright 8-15 tokens)
+" Semantic Aliases
 let s:tokens['keyword']   = s:tokens['br_red']
 let s:tokens['func']      = s:tokens['br_yellow']
 let s:tokens['type']      = s:tokens['br_blue']
@@ -89,38 +63,36 @@ let s:tokens['info']      = s:tokens['br_blue']
 let s:tokens['hint']      = s:tokens['br_cyan']
 let s:tokens['ok']        = s:tokens['br_green']
 
-" 16-color tty fix: distinct cterm value from br_black (8), used
-" where text would otherwise sit on a DarkGray background and vanish
+" Fallback token for 16-color TTYs to avoid dark-on-dark text
 let s:tokens['muted_alt'] = 0
 
-" No g:terminal_ansi_colors here anymore - that variable needs hex RGB
-" values to program Neovim/Vim's :terminal palette, which this theme no
-" longer carries. Configure your terminal emulator (e.g. Alacritty) and/or
-" /etc/vtrgb directly with the Gruvbox Material palette instead.
+" GUI (RGB) equivalents (classic Gruvbox dark palette)
+let s:gui_hex = [
+      \ '#282828', '#cc241d', '#98971a', '#d79921',
+      \ '#458588', '#b16286', '#689d6a', '#a89984',
+      \ '#726354', '#fb4934', '#b8bb26', '#fabd2f',
+      \ '#83a598', '#d3869b', '#8ec07c', '#ebdbb2'
+      \ ]
 
-" 2. Refactored Highlight Function (cterm/16-color only, with 8-color fallback)
-"
-" On terminals reporting &t_Co < 16 (e.g. the raw Linux console with
-" $TERM=linux, which only ever advertises 8 colors), a numeric bright
-" token (8-15) is meaningless - ctermfg=12 has no 9th-15th slot to draw
-" from. We fold it back to its base ANSI color (n - 8) and add 'bold',
-" which is the traditional way 8-color terminals simulate a "bright"
-" variant. Callers never pass 'bold' explicitly - it is added here, and
-" only here, so it only ever appears in the 8-color fallback case.
+" 2. Highlight Function (Handles cterm, guifg/guibg, and 8-color fallback)
 function! s:hi(group, fg_token, bg_token, attr)
   let l:cmd = 'highlight ' . a:group
   let l:attrs = []
 
   if a:attr != ''
-    " Many terminals/multiplexers don't support italic (SGR 3) and
-    " silently substitute reverse video instead - a full fg/bg swap,
-    " which is far more jarring than just losing the slant.
+    " Replace unsupported 'italic' with 'NONE' to prevent terminal inversion
     call add(l:attrs, (a:attr ==# 'italic') ? 'NONE' : a:attr)
   endif
 
   " Handle Foreground
   if a:fg_token != '' && has_key(s:tokens, a:fg_token)
     let l:fg = s:tokens[a:fg_token]
+    if type(l:fg) == v:t_number
+      let l:cmd .= ' guifg=' . s:gui_hex[l:fg]
+    elseif l:fg ==# 'NONE'
+      let l:cmd .= ' guifg=NONE'
+    endif
+    " 8-color fallback: fold bright tokens (8-15) down to (0-7) and add bold
     if type(l:fg) == v:t_number && &t_Co < 16 && l:fg >= 8 && l:fg <= 15
       let l:fg = l:fg - 8
       if index(l:attrs, 'bold') < 0
@@ -133,6 +105,11 @@ function! s:hi(group, fg_token, bg_token, attr)
   " Handle Background
   if a:bg_token != '' && has_key(s:tokens, a:bg_token)
     let l:bg = s:tokens[a:bg_token]
+    if type(l:bg) == v:t_number
+      let l:cmd .= ' guibg=' . s:gui_hex[l:bg]
+    elseif l:bg ==# 'NONE'
+      let l:cmd .= ' guibg=NONE'
+    endif
     if type(l:bg) == v:t_number && &t_Co < 16 && l:bg >= 8 && l:bg <= 15
       let l:bg = l:bg - 8
     endif
@@ -141,8 +118,6 @@ function! s:hi(group, fg_token, bg_token, attr)
 
   " Handle Attributes
   if !empty(l:attrs)
-    " NONE should only ever appear alone - if a real attribute (e.g. a
-    " 'bold' added by the fold-down above) is also present, drop NONE.
     if len(l:attrs) > 1
       call filter(l:attrs, 'v:val !=# "NONE"')
     endif
@@ -155,6 +130,7 @@ endfunction
 " 3. Highlighting Definitions
 set cursorline
 
+" Editor UI
 call s:hi('Normal', 'br_white', 'bg', 'NONE')
 call s:hi('NormalFloat', 'br_white', 'bg_popup', '')
 call s:hi('SignColumn', 'br_black', 'bg', '')
@@ -192,6 +168,7 @@ call s:hi('WildMenu', 'black', 'keyword', '')
 call s:hi('Cursor', 'black', 'br_white', '')
 call s:hi('EndOfBuffer', 'border', 'NONE', '')
 
+" Syntax Groups
 call s:hi('Statement', 'keyword', 'NONE', 'NONE')
 call s:hi('Conditional', 'keyword', 'NONE', 'NONE')
 call s:hi('Repeat', 'keyword', 'NONE', 'NONE')
@@ -228,6 +205,7 @@ call s:hi('Ignore', 'br_black', 'NONE', 'NONE')
 call s:hi('Error', 'error', 'NONE', 'NONE')
 call s:hi('Todo', 'warn', 'NONE', 'italic')
 
+" C / C++ Specific
 call s:hi('cppBoolean', 'number', 'NONE', 'NONE')
 call s:hi('cIncluded', 'br_yellow', 'NONE', 'NONE')
 call s:hi('Namespace', 'br_white', 'NONE', 'NONE')
@@ -237,6 +215,7 @@ call s:hi('ScopedIdentifier', 'br_white', 'NONE', 'NONE')
 call s:hi('cType', 'type', 'NONE', 'NONE')
 call s:hi('cCustomType', 'type', 'NONE', 'NONE')
 
+" CoC / LSP Diagnostics
 call s:hi('CocErrorSign', 'error', 'NONE', '')
 call s:hi('CocWarningSign', 'warn', 'NONE', '')
 call s:hi('CocInfoSign', 'info', 'NONE', '')
@@ -249,22 +228,14 @@ call s:hi('CocErrorVirtualText', 'error', 'NONE', 'italic')
 call s:hi('CocWarningVirtualText', 'warn', 'NONE', 'italic')
 call s:hi('CocInfoVirtualText', 'info', 'NONE', 'italic')
 call s:hi('CocHintVirtualText', 'hint', 'NONE', 'italic')
+
+" CoC Floating UI & Completion Menu
 call s:hi('CocFloating', 'white', 'br_black', '')
-" Dedicated base highlight for the completion popup only (set via
-" suggest.pumFloatConfig.highlight in coc-settings.json). Decoupled from
-" CocFloating so the completion word can be black without also turning
-" hover docs / rename box / other Coc floats black.
 call s:hi('CocPumFloat', 'br_white', 'br_black', '')
 call s:hi('CocFloatSbar', '', 'br_black', '')
 call s:hi('CocFloatThumb', '', 'br_black', '')
 call s:hi('CocFloatDivider', 'white', 'br_black', '')
 call s:hi('CocMenuSel', 'br_white', 'keyword', '')
-
-" Coc completion popup menu (the suggestion list you get while typing).
-" These default-link to Comment/Pmenu, and Comment's fg (br_black) is the
-" same value as the popup's br_black background above - hence invisible
-" "(expression)"-style detail/shortcut text. Defined explicitly here with
-" 'muted_alt' (a distinct dark token) for de-emphasized text instead.
 call s:hi('CocPumMenu', 'black', 'NONE', '')
 call s:hi('CocPumSearch', 'br_cyan', 'NONE', '')
 call s:hi('CocPumShortcut', 'white', 'NONE', '')
@@ -275,6 +246,7 @@ call s:hi('CocInlayHint', 'muted_alt', 'br_black', 'italic')
 call s:hi('CocFadeOut', 'br_black', 'NONE', 'italic')
 call s:hi('CocCodeLens', 'br_black', 'NONE', 'italic')
 
+" CoC Semantic Tokens
 call s:hi('CocSemTypeClass', 'br_cyan', 'NONE', 'NONE')
 call s:hi('CocSemTypeStruct', 'br_cyan', 'NONE', 'NONE')
 call s:hi('CocSemTypeClassModDefaultLibrary', 'br_cyan', 'NONE', 'NONE')
@@ -311,6 +283,7 @@ call s:hi('CocSemTypeOperator', 'operator', 'NONE', 'NONE')
 call s:hi('CocSemTypeOperatorModKeyword', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeModOperatorKeyword', 'br_white', 'NONE', 'NONE')
 
+" Diff & Spell
 call s:hi('DiffAdd', 'ok', 'diff_add_bg', '')
 call s:hi('DiffChange', 'warn', 'diff_change_bg', '')
 call s:hi('DiffDelete', 'error', 'diff_delete_bg', '')
@@ -321,16 +294,12 @@ call s:hi('SpellCap', '', '', 'undercurl')
 call s:hi('SpellRare', '', '', 'undercurl')
 call s:hi('SpellLocal', '', '', 'undercurl')
 
+" QuickFix & Reference Highlights
 call s:hi('CocTarget', 'br_white', 'visual', '')
-
-" Fix LSP / CoC document highlights (word under cursor matching)
 call s:hi('LspReferenceText', 'br_white', 'visual', '')
 call s:hi('LspReferenceRead', 'br_white', 'visual', '')
 call s:hi('LspReferenceWrite', 'br_white', 'visual', '')
-
-" Fix QuickFix active selection line
 call s:hi('QuickFixLine', 'br_white', 'visual', '')
 call s:hi('CocHighlightText', 'br_white', 'visual', '')
 
-" If using CoC, ensure its internal target highlights match too
 highlight! link CocHighlightText Visual
