@@ -6,6 +6,9 @@ let g:coc_user_config = {
   \ "semanticTokens.enable": v:true,
   \ "inlayHint.enable": v:false
 \ }
+
+call coc#config('suggest.pumFloatConfig', {'highlight': 'CocPumFloat'})
+
 " --- CoC extensions --- 
 let g:coc_global_extensions = ['coc-clangd']
 
