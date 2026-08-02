@@ -5,7 +5,7 @@ highlight clear
 if exists("syntax_on")
   syntax reset
 endif
-let g:colors_name = "my-theme"
+let g:colors_name = "gruvbox"
 
 if !exists('g:my_theme_transparent')
   let g:my_theme_transparent = 0
