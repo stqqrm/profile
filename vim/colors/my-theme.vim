@@ -249,13 +249,29 @@ call s:hi('CocErrorVirtualText', 'error', 'NONE', 'italic')
 call s:hi('CocWarningVirtualText', 'warn', 'NONE', 'italic')
 call s:hi('CocInfoVirtualText', 'info', 'NONE', 'italic')
 call s:hi('CocHintVirtualText', 'hint', 'NONE', 'italic')
-call s:hi('CocFloating', 'br_white', 'bg_popup', '')
-call s:hi('CocFloatSbar', '', 'border', '')
+call s:hi('CocFloating', 'white', 'br_black', '')
+" Dedicated base highlight for the completion popup only (set via
+" suggest.pumFloatConfig.highlight in coc-settings.json). Decoupled from
+" CocFloating so the completion word can be black without also turning
+" hover docs / rename box / other Coc floats black.
+call s:hi('CocPumFloat', 'br_white', 'br_black', '')
+call s:hi('CocFloatSbar', '', 'br_black', '')
 call s:hi('CocFloatThumb', '', 'br_black', '')
-call s:hi('CocFloatDivider', 'border', 'bg_popup', '')
-call s:hi('CocMenuSel', 'black', 'keyword', '')
+call s:hi('CocFloatDivider', 'white', 'br_black', '')
+call s:hi('CocMenuSel', 'br_white', 'keyword', '')
+
+" Coc completion popup menu (the suggestion list you get while typing).
+" These default-link to Comment/Pmenu, and Comment's fg (br_black) is the
+" same value as the popup's br_black background above - hence invisible
+" "(expression)"-style detail/shortcut text. Defined explicitly here with
+" 'muted_alt' (a distinct dark token) for de-emphasized text instead.
+call s:hi('CocPumMenu', 'black', 'NONE', '')
+call s:hi('CocPumSearch', 'br_cyan', 'NONE', '')
+call s:hi('CocPumShortcut', 'white', 'NONE', '')
+call s:hi('CocPumDetail', 'white', 'NONE', '')
+call s:hi('CocPumDeprecated', 'muted_alt', 'NONE', 'strikethrough')
 call s:hi('CocSearch', 'func', 'NONE', 'NONE')
-call s:hi('CocInlayHint', 'br_black', 'bg_popup', 'italic')
+call s:hi('CocInlayHint', 'muted_alt', 'br_black', 'italic')
 call s:hi('CocFadeOut', 'br_black', 'NONE', 'italic')
 call s:hi('CocCodeLens', 'br_black', 'NONE', 'italic')
 
