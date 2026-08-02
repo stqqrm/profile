@@ -20,13 +20,13 @@ call plug#end()
 
 " Install missing packages
 augroup AutoInstallPlugins
-  autocmd!
-  autocmd VimEnter * nested
-    \ if len(filter(values(g:plugs), '!isdirectory(v:val.dir)')) > 0
-    \|   PlugInstall --sync
-    \|   call input("Press ENTER to continue...")
-    \|   q
-    \|   execute 'set runtimepath+=' . fnameescape(g:plug_home)
-    \|   doautocmd VimEnter
-    \| endif
+	autocmd!
+	autocmd VimEnter * nested
+		\ if len(filter(values(g:plugs), '!isdirectory(v:val.dir)')) > 0
+		\|   PlugInstall --sync
+		\|   call input("Press ENTER to continue...")
+		\|   q
+		\|   execute 'set runtimepath+=' . fnameescape(g:plug_home)
+		\|   doautocmd VimEnter
+		\| endif
 augroup END
