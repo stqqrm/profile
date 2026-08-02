@@ -18,9 +18,15 @@ call plug#begin('~/.vim/plugged')
 	Plug 'wellle/context.vim'
 call plug#end()
 
-" --- Auto-install missing plugins ---
-autocmd VimEnter *
-  \ if len(filter(values(g:plugs), '!isdirectory(v:val.dir)')) > 0
-  \|   PlugInstall --sync
-  \|   source /etc/vimrc
-  \| endif
+" Install missing packages
+augroup AutoInstallPlugins
+  autocmd!
+  autocmd VimEnter * nested
+    \ if len(filter(values(g:plugs), '!isdirectory(v:val.dir)')) > 0
+    \|   PlugInstall --sync
+    \|   call input("Press ENTER to continue...")
+    \|   q
+    \|   execute 'set runtimepath+=' . fnameescape(g:plug_home)
+    \|   doautocmd VimEnter
+    \| endif
+augroup END
