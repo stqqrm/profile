@@ -63,8 +63,13 @@ set signcolumn=yes
 set smartcase
 set nowrap
 set history=10000
-if has('termguicolors') && empty($XDG_VTNR) && $TERM !=# 'linux'
-	set termguicolors
+
+
+let s:is_raw_console = empty($DISPLAY) && empty($WAYLAND_DISPLAY)
+    \ && ($TERM ==# 'linux' || !empty($XDG_VTNR))
+
+if has('termguicolors') && !s:is_raw_console
+  set termguicolors
 endif
 
 
