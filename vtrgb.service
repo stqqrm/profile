@@ -1,7 +1,12 @@
 [Unit]
 Description=Set Linux console 16 color palette
 After=systemd-vconsole-setup.service
+Wants=systemd-vconsole-setup.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/setvtrgb /etc/vtrgb
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
