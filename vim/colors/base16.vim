@@ -69,9 +69,9 @@ let s:tokens['muted_alt'] = 0
 " GUI (RGB) equivalents (classic Gruvbox dark palette)
 let s:gui_hex = [
       \ 'Black', 'Red', 'Green', 'Yellow',
-      \ 'Blue', 'Magenta', 'Cyan', 'White',
+      \ 'Blue', 'Magenta', 'Cyan', 'LightGray',
       \ 'DarkGray', 'LightRed', 'LightGreen', 'LightYellow',
-      \ 'LightBlue', 'LightMagenta', 'LightCyan', 'LightGray'
+      \ 'LightBlue', 'LightMagenta', 'LightCyan', 'White'
       \ ]
 
 " 2. Highlight Function (Handles cterm, guifg/guibg, and 8-color fallback)
