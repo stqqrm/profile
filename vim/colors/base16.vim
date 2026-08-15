@@ -1,11 +1,11 @@
-" my-theme.vim - Gruvbox Material Muted Pastel Edition
+" base16.vim
 
 set background=dark
 highlight clear
 if exists("syntax_on")
   syntax reset
 endif
-let g:colors_name = "gruvbox"
+let g:colors_name = "base16"
 
 if !exists('g:my_theme_transparent')
   let g:my_theme_transparent = 1
@@ -68,10 +68,10 @@ let s:tokens['muted_alt'] = 0
 
 " GUI (RGB) equivalents (classic Gruvbox dark palette)
 let s:gui_hex = [
-      \ '#282828', '#cc241d', '#98971a', '#d79921',
-      \ '#458588', '#b16286', '#689d6a', '#a89984',
-      \ '#726354', '#fb4934', '#b8bb26', '#fabd2f',
-      \ '#83a598', '#d3869b', '#8ec07c', '#ebdbb2'
+      \ 'Black', 'Red', 'Green', 'Yellow',
+      \ 'Blue', 'Magenta', 'Cyan', 'White',
+      \ 'DarkGray', 'LightRed', 'LightGreen', 'LightYellow',
+      \ 'LightBlue', 'LightMagenta', 'LightCyan', 'LightGray'
       \ ]
 
 " 2. Highlight Function (Handles cterm, guifg/guibg, and 8-color fallback)
