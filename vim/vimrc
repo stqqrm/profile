@@ -23,7 +23,6 @@ if has('gui_running')
 endif
 
 set encoding=utf-8
-set fileencoding=utf-8
 
 set list
 function! SetDynamicListChars()
@@ -33,7 +32,6 @@ function! SetDynamicListChars()
         return
     endif
 
-    " Enable 'list' for writable files
     setlocal list
 
     " Fallback to tabstop if shiftwidth is set to 0 (default in Vim)
@@ -47,9 +45,6 @@ augroup DynamicListChars
     autocmd BufEnter,FileType * call SetDynamicListChars()
     autocmd VimEnter * nested call SetDynamicListChars()
 augroup END
-
-" Force run once immediately on Vim startup for the initial buffer
-call SetDynamicListChars()
 
 " Misc 
 set nocompatible
