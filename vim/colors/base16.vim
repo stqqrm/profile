@@ -66,15 +66,7 @@ let s:tokens['ok']        = s:tokens['br_green']
 " Fallback token for 16-color TTYs to avoid dark-on-dark text
 let s:tokens['muted_alt'] = 0
 
-" GUI (RGB) equivalents (classic Gruvbox dark palette)
-let s:gui_hex = [
-      \ 'Black', 'Red', 'Green', 'Yellow',
-      \ 'Blue', 'Magenta', 'Cyan', 'LightGray',
-      \ 'DarkGray', 'LightRed', 'LightGreen', 'LightYellow',
-      \ 'LightBlue', 'LightMagenta', 'LightCyan', 'White'
-      \ ]
-
-" 2. Highlight Function (Handles cterm, guifg/guibg, and 8-color fallback)
+" Highlight Function (Handles cterm, guifg/guibg=NONE, and 8-color fallback)
 function! s:hi(group, fg_token, bg_token, attr)
   let l:cmd = 'highlight ' . a:group
   let l:attrs = []
@@ -87,11 +79,8 @@ function! s:hi(group, fg_token, bg_token, attr)
   " Handle Foreground
   if a:fg_token != '' && has_key(s:tokens, a:fg_token)
     let l:fg = s:tokens[a:fg_token]
-    if type(l:fg) == v:t_number
-      let l:cmd .= ' guifg=' . s:gui_hex[l:fg]
-    elseif l:fg ==# 'NONE'
-      let l:cmd .= ' guifg=NONE'
-    endif
+    let l:cmd .= ' guifg=NONE'
+
     " 8-color fallback: fold bright tokens (8-15) down to (0-7) and add bold
     if type(l:fg) == v:t_number && &t_Co < 16 && l:fg >= 8 && l:fg <= 15
       let l:fg = l:fg - 8
@@ -105,11 +94,8 @@ function! s:hi(group, fg_token, bg_token, attr)
   " Handle Background
   if a:bg_token != '' && has_key(s:tokens, a:bg_token)
     let l:bg = s:tokens[a:bg_token]
-    if type(l:bg) == v:t_number
-      let l:cmd .= ' guibg=' . s:gui_hex[l:bg]
-    elseif l:bg ==# 'NONE'
-      let l:cmd .= ' guibg=NONE'
-    endif
+    let l:cmd .= ' guibg=NONE'
+
     if type(l:bg) == v:t_number && &t_Co < 16 && l:bg >= 8 && l:bg <= 15
       let l:bg = l:bg - 8
     endif
