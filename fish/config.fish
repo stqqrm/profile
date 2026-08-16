@@ -214,13 +214,15 @@ function fish_prompt
 	set_color -o normal
 	echo -n ' '
 
+	set_color -o yellow
 	if test (pwd) = $HOME
-		set_color -o yellow
 		echo -n '~'
-	else
-		set_color -o yellow
+	else if test (pwd) = '/'
+		echo -n '/'
+    else
 		echo -n '$'
 	end
+
 
 	set_color normal
 	echo -n ' '
