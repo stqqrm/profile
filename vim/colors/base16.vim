@@ -46,6 +46,44 @@ let s:tokens = {
       \ 'NONE': 'NONE'
       \ }
 
+let g:base16_gui_black      = 'Black'
+let g:base16_gui_red        = 'Red'
+let g:base16_gui_green      = 'Green'
+let g:base16_gui_yellow     = 'Yellow'
+let g:base16_gui_blue       = 'Blue'
+let g:base16_gui_magenta    = 'Magenta'
+let g:base16_gui_cyan       = 'Cyan'
+let g:base16_gui_white      = 'LightGray'
+let g:base16_gui_br_black   = 'DarkGray'
+let g:base16_gui_br_red     = 'LightRed'
+let g:base16_gui_br_green   = 'LightGreen'
+let g:base16_gui_br_yellow  = 'LightYellow'
+let g:base16_gui_br_blue    = 'LightBlue'
+let g:base16_gui_br_magenta = 'LightMagenta'
+let g:base16_gui_br_cyan    = 'LightCyan'
+let g:base16_gui_br_white   = 'White'
+
+let s:gui_colors = [
+      \ g:base16_gui_black,
+      \ g:base16_gui_red,
+      \ g:base16_gui_green,
+      \ g:base16_gui_yellow,
+      \ g:base16_gui_blue,
+      \ g:base16_gui_magenta,
+      \ g:base16_gui_cyan,
+      \ g:base16_gui_white,
+      \ g:base16_gui_br_black,
+      \ g:base16_gui_br_red,
+      \ g:base16_gui_br_green,
+      \ g:base16_gui_br_yellow,
+      \ g:base16_gui_br_blue,
+      \ g:base16_gui_br_magenta,
+      \ g:base16_gui_br_cyan,
+      \ g:base16_gui_br_white,
+      \ ]
+
+let s:use_gui_colors = has('gui_running')
+
 " Semantic Aliases
 let s:tokens['keyword']   = s:tokens['br_red']
 let s:tokens['func']      = s:tokens['br_yellow']
@@ -66,40 +104,52 @@ let s:tokens['ok']        = s:tokens['br_green']
 " Fallback token for 16-color TTYs to avoid dark-on-dark text
 let s:tokens['muted_alt'] = 0
 
+let g:base16_black = 'Black'
+
 " Highlight Function (Handles cterm, guifg/guibg=NONE, and 8-color fallback)
 function! s:hi(group, fg_token, bg_token, attr)
   let l:cmd = 'highlight ' . a:group
   let l:attrs = []
-
   if a:attr != ''
-    " Replace unsupported 'italic' with 'NONE' to prevent terminal inversion
     call add(l:attrs, (a:attr ==# 'italic') ? 'NONE' : a:attr)
   endif
 
   " Handle Foreground
   if a:fg_token != '' && has_key(s:tokens, a:fg_token)
     let l:fg = s:tokens[a:fg_token]
-    let l:cmd .= ' guifg=NONE'
-
-    " 8-color fallback: fold bright tokens (8-15) down to (0-7) and add bold
-    if type(l:fg) == v:t_number && &t_Co < 16 && l:fg >= 8 && l:fg <= 15
-      let l:fg = l:fg - 8
-      if index(l:attrs, 'bold') < 0
-        call add(l:attrs, 'bold')
+    if type(l:fg) == v:t_number
+      " GUI: real hex from the array, indexed by the same ANSI number
+      let l:cmd .= s:use_gui_colors
+            \ ? (' guifg=' . s:gui_colors[l:fg])
+            \ : ' guifg=NONE'
+      " 8-color fallback (cterm only): fold bright tokens down, add bold
+      if &t_Co < 16 && l:fg >= 8 && l:fg <= 15
+        let l:fg = l:fg - 8
+        if index(l:attrs, 'bold') < 0
+          call add(l:attrs, 'bold')
+        endif
       endif
+      let l:cmd .= ' ctermfg=' . l:fg
+    else
+      " 'NONE' or other string token
+      let l:cmd .= ' guifg=' . l:fg . ' ctermfg=' . l:fg
     endif
-    let l:cmd .= ' ctermfg=' . l:fg
   endif
 
   " Handle Background
   if a:bg_token != '' && has_key(s:tokens, a:bg_token)
     let l:bg = s:tokens[a:bg_token]
-    let l:cmd .= ' guibg=NONE'
-
-    if type(l:bg) == v:t_number && &t_Co < 16 && l:bg >= 8 && l:bg <= 15
-      let l:bg = l:bg - 8
+    if type(l:bg) == v:t_number
+      let l:cmd .= s:use_gui_colors
+            \ ? (' guibg=' . s:gui_colors[l:bg])
+            \ : ' guibg=NONE'
+      if &t_Co < 16 && l:bg >= 8 && l:bg <= 15
+        let l:bg = l:bg - 8
+      endif
+      let l:cmd .= ' ctermbg=' . l:bg
+    else
+      let l:cmd .= ' guibg=' . l:bg . ' ctermbg=' . l:bg
     endif
-    let l:cmd .= ' ctermbg=' . l:bg
   endif
 
   " Handle Attributes
