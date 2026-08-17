@@ -4,6 +4,35 @@ set -U fish_greeting
 set -g fish_job_summary none
 set -gx XDG_RUNTIME_DIR /run/user/(id -u)
 
+function truecolor
+    bash -c '
+n=$(tput cols)
+
+for ((i=0;i<n*2;i++)); do
+    h=$((i*360/(n*2)))
+    x=$((h/60))
+    p=$((h%60*255/60))
+
+    case $x in
+        0) r=255; g=$p; b=0 ;;
+        1) r=$((255-p)); g=255; b=0 ;;
+        2) r=0; g=255; b=$p ;;
+        3) r=0; g=$((255-p)); b=255 ;;
+        4) r=$p; g=0; b=255 ;;
+        5) r=255; g=0; b=$((255-p)) ;;
+    esac
+
+    if ((i%2)); then
+        printf "\e[38;2;%d;%d;%dm▐" "$r" "$g" "$b"
+    else
+        printf "\e[48;2;%d;%d;%dm" "$r" "$g" "$b"
+    fi
+done
+
+printf "\e[0m\n"
+'
+end
+
 function _sfg_draw
     set count (count $_sfg_ids)
     printf "\e[%dA" (math $count + 1)
