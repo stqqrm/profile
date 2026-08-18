@@ -53,6 +53,7 @@ set clipboard=unnamedplus
 set noswapfile
 set relativenumber nu
 set signcolumn=yes
+set ignorecase
 set smartcase
 set nowrap
 set history=10000
