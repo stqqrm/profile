@@ -44,8 +44,8 @@ set encoding=utf-8
 filetype plugin indent on
 syntax on
 
-command! W execute 'silent! write !sudo tee % >/dev/null' | edit!
-cnoreabbrev <expr> w getcmdtype() == ':' && getcmdline() ==# 'w' ? 'W' : 'w'
+"command! W execute 'silent! write !sudo tee % >/dev/null' | edit!
+"cnoreabbrev <expr> w getcmdtype() == ':' && getcmdline() ==# 'w' ? 'W' : 'w'
 
 " Ensure cursor is centered
 augroup ForceScrolloff
