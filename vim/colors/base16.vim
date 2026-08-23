@@ -91,20 +91,15 @@ let s:tokens['type']      = s:tokens['br_blue']
 let s:tokens['lvar']      = s:tokens['br_white']
 let s:tokens['string']    = s:tokens['br_magenta']
 let s:tokens['number']    = s:tokens['br_green']
-let s:tokens['comment']   = s:tokens['br_black']
-let s:tokens['operator']  = s:tokens['br_cyan']
-let s:tokens['preproc']   = s:tokens['br_black']
+let s:tokens['comment']   = s:tokens['white']
+let s:tokens['operator']  = s:tokens['br_white']
+let s:tokens['preproc']   = s:tokens['white']
 let s:tokens['special']   = s:tokens['br_cyan']
 let s:tokens['error']     = s:tokens['br_red']
 let s:tokens['warn']      = s:tokens['br_yellow']
 let s:tokens['info']      = s:tokens['br_blue']
 let s:tokens['hint']      = s:tokens['br_cyan']
 let s:tokens['ok']        = s:tokens['br_green']
-
-" Fallback token for 16-color TTYs to avoid dark-on-dark text
-let s:tokens['muted_alt'] = 0
-
-let g:base16_black = 'Black'
 
 " Highlight Function (Handles cterm, guifg/guibg=NONE, and 8-color fallback)
 function! s:hi(group, fg_token, bg_token, attr)
@@ -180,16 +175,16 @@ call s:hi('Search', 'br_white', 'visual', '')
 call s:hi('IncSearch', 'br_white', 'visual', '')
 call s:hi('MatchParen', 'br_red', 'NONE', 'NONE')
 call s:hi('Pmenu', 'br_white', 'bg_popup', '')
-call s:hi('PmenuSel', 'black', 'keyword', '')
+call s:hi('PmenuSel', 'br_black', 'keyword', '')
 call s:hi('PmenuSbar', '', 'border', '')
 call s:hi('PmenuThumb', '', 'br_black', '')
 call s:hi('StatusLine', 'br_white', 'bg_alt', '')
-call s:hi('StatusLineNC', 'muted_alt', 'bg_alt', '')
+call s:hi('StatusLineNC', 'white', 'bg_alt', '')
 call s:hi('VertSplit', 'border', 'bg', '')
-call s:hi('TabLine', 'muted_alt', 'bg_alt', '')
+call s:hi('TabLine', 'white', 'bg_alt', '')
 call s:hi('TabLineSel', 'br_white', 'bg', '')
 call s:hi('TabLineFill', '', 'bg_alt', '')
-call s:hi('Folded', 'muted_alt', 'bg_float', 'italic')
+call s:hi('Folded', 'white', 'bg_float', 'italic')
 call s:hi('FoldColumn', 'br_black', 'bg', '')
 call s:hi('NonText', 'border', 'NONE', '')
 call s:hi('SpecialKey', 'br_black', 'NONE', '')
@@ -200,8 +195,8 @@ call s:hi('Question', 'ok', 'NONE', '')
 call s:hi('MoreMsg', 'ok', 'NONE', '')
 call s:hi('ErrorMsg', 'error', 'NONE', '')
 call s:hi('WarningMsg', 'warn', 'NONE', '')
-call s:hi('WildMenu', 'black', 'keyword', '')
-call s:hi('Cursor', 'black', 'br_white', '')
+call s:hi('WildMenu', 'br_black', 'keyword', '')
+call s:hi('Cursor', 'br_black', 'br_white', '')
 call s:hi('EndOfBuffer', 'border', 'NONE', '')
 
 " Syntax Groups
@@ -223,14 +218,14 @@ call s:hi('Number', 'number', 'NONE', 'NONE')
 call s:hi('Float', 'number', 'NONE', 'NONE')
 call s:hi('Boolean', 'number', 'NONE', 'NONE')
 call s:hi('Constant', 'number', 'NONE', 'NONE')
-call s:hi('Operator', 'operator', 'NONE', 'NONE')
+call s:hi('Operator', 'keyword', 'NONE', 'NONE')
 call s:hi('Delimiter', 'operator', 'NONE', 'NONE')
 call s:hi('Comment', 'comment', 'NONE', 'italic')
 call s:hi('SpecialComment', 'func', 'NONE', 'italic')
 call s:hi('PreProc', 'preproc', 'NONE', 'NONE')
 call s:hi('Include', 'preproc', 'NONE', 'NONE')
 call s:hi('Define', 'preproc', 'NONE', 'NONE')
-call s:hi('Macro', 'br_black', 'NONE', 'NONE')
+call s:hi('Macro', 'preproc', 'NONE', 'NONE')
 call s:hi('PreCondit', 'preproc', 'NONE', 'NONE')
 call s:hi('Special', 'special', 'NONE', 'NONE')
 call s:hi('SpecialChar', 'number', 'NONE', 'NONE')
@@ -266,19 +261,19 @@ call s:hi('CocInfoVirtualText', 'info', 'NONE', 'italic')
 call s:hi('CocHintVirtualText', 'hint', 'NONE', 'italic')
 
 " CoC Floating UI & Completion Menu
-call s:hi('CocFloating', 'white', 'br_black', '')
+call s:hi('CocFloating', 'br_white', 'br_black', '')
 call s:hi('CocPumFloat', 'br_white', 'br_black', '')
 call s:hi('CocFloatSbar', '', 'br_black', '')
 call s:hi('CocFloatThumb', '', 'br_black', '')
 call s:hi('CocFloatDivider', 'white', 'br_black', '')
-call s:hi('CocMenuSel', 'br_white', 'keyword', '')
-call s:hi('CocPumMenu', 'black', 'NONE', '')
+call s:hi('CocMenuSel', 'br_white', 'green', '')
+call s:hi('CocPumMenu', 'white', 'NONE', '')
 call s:hi('CocPumSearch', 'br_cyan', 'NONE', '')
 call s:hi('CocPumShortcut', 'white', 'NONE', '')
 call s:hi('CocPumDetail', 'white', 'NONE', '')
-call s:hi('CocPumDeprecated', 'muted_alt', 'NONE', 'strikethrough')
+call s:hi('CocPumDeprecated', 'white', 'NONE', 'strikethrough')
 call s:hi('CocSearch', 'func', 'NONE', 'NONE')
-call s:hi('CocInlayHint', 'muted_alt', 'br_black', 'italic')
+call s:hi('CocInlayHint', 'white', 'br_black', 'italic')
 call s:hi('CocFadeOut', 'br_black', 'NONE', 'italic')
 call s:hi('CocCodeLens', 'br_black', 'NONE', 'italic')
 
@@ -298,17 +293,17 @@ call s:hi('CocSemTypeTypedef', 'type', 'NONE', 'NONE')
 call s:hi('CocSemTypeNamespace', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeFunction', 'func', 'NONE', 'NONE')
 call s:hi('CocSemTypeMethod', 'func', 'NONE', 'NONE')
-call s:hi('CocSemTypeParameter', 'br_black', 'NONE', 'NONE')
+call s:hi('CocSemTypeParameter', 'white', 'NONE', 'NONE')
 call s:hi('CocSemTypeVariable', 'lvar', 'NONE', 'NONE')
-call s:hi('CocSemTypeProperty', 'lvar', 'NONE', 'NONE')
 call s:hi('CocSemTypeVariableModGlobalScope', 'br_white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModGlobalScopeDeclaration', 'br_white', 'NONE', 'NONE')
-call s:hi('CocSemTypeVariableModFileScope', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeVariableModFileScopeDeclaration', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModGlobalScopeDeclaration', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeVariableModStatic', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeVariableModFileScope', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeVariableModStaticDeclaration', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeModVariableGlobalScope', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeModVariableGlobalScopeDeclaration', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemTypeProperty', 'lvar', 'NONE', 'NONE')
 call s:hi('CocSemTypeModVariableFileScope', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeModVariableStatic', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeModPropertyStatic', 'br_white', 'NONE', 'NONE')
@@ -318,6 +313,7 @@ call s:hi('CocSemTypeComment', 'comment', 'NONE', 'italic')
 call s:hi('CocSemTypeOperator', 'operator', 'NONE', 'NONE')
 call s:hi('CocSemTypeOperatorModKeyword', 'br_white', 'NONE', 'NONE')
 call s:hi('CocSemTypeModOperatorKeyword', 'br_white', 'NONE', 'NONE')
+call s:hi('CocSemVariableGlobalScope', 'white', 'NONE', 'NONE')
 
 " Diff & Spell
 call s:hi('DiffAdd', 'ok', 'diff_add_bg', '')
