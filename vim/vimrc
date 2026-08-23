@@ -24,7 +24,6 @@ endif
 
 " Misc 
 set nocompatible
-set hlsearch
 set showmode
 let mapleader = " "
 set clipboard=unnamedplus
