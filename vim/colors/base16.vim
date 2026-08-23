@@ -334,4 +334,13 @@ call s:hi('LspReferenceWrite', 'br_white', 'visual', '')
 call s:hi('QuickFixLine', 'br_white', 'visual', '')
 call s:hi('CocHighlightText', 'br_white', 'visual', '')
 
+" ALE Diagnostics
+call s:hi('ALEError', '', 'NONE', 'undercurl')
+call s:hi('ALEWarning', '', 'NONE', 'undercurl')
+call s:hi('ALEInfo', '', 'NONE', 'undercurl')
+call s:hi('ALEErrorSign', 'error', 'NONE', '')
+call s:hi('ALEWarningSign', 'warn', 'NONE', '')
+call s:hi('ALEVirtualTextError', 'error', 'NONE', 'italic')
+call s:hi('ALEVirtualTextWarning', 'warn', 'NONE', 'italic')
+
 highlight! link CocHighlightText Visual
