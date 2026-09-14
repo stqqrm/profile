@@ -68,6 +68,9 @@ augroup cppman_lookup
     autocmd FileType c,cpp setlocal keywordprg=cppman
 augroup END
 
+let g:limelight_conceal_ctermfg = 8
+let g:limelight_conceal_guifg = '#666666'
+
 " Fix å on swedish keyboard
 let g:AutoPairsShortcutFastWrap = ''
 
