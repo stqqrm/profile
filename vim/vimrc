@@ -68,6 +68,9 @@ augroup cppman_lookup
     autocmd FileType c,cpp setlocal keywordprg=cppman
 augroup END
 
+" Fix å on swedish keyboard
+let g:AutoPairsShortcutFastWrap = '<C-f>'
+
 " ! Make sure, nodejs, npm, clangd, universal-ctags are installed
 " sudo pacman -S nodejs npm clang universal-ctags
 source /etc/vim/plug.vim
