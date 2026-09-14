@@ -12,6 +12,7 @@ call plug#begin('~/.vim/plugged')
 	Plug 'jiangmiao/auto-pairs'
 	Plug 'junegunn/fzf'
 	Plug 'junegunn/fzf.vim'
+    Plug 'junegunn/limelight.vim'
 	Plug 'stqqrm/bex.vim'
 	Plug 'stqqrm/clangd-manager.vim'
 	Plug 'wellle/context.vim'
