@@ -123,3 +123,18 @@ augroup DynamicListChars
     autocmd BufEnter,FileType * call SetDynamicListChars()
     autocmd VimEnter * nested call SetDynamicListChars()
 augroup END
+
+// Remove ^M / \r character from paste
+function! StripCR()
+    for l:ln in range(line("'["), line("']"))
+        let l:text = getline(l:ln)
+        if l:text[-1:] ==# "\r"
+            call setline(l:ln, l:text[:-2])
+        endif
+    endfor
+endfunction
+
+augroup StripCROnPaste
+    autocmd!
+    autocmd TextChanged,TextChangedI * call StripCR()
+augroup END
