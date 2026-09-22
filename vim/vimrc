@@ -124,7 +124,7 @@ augroup DynamicListChars
     autocmd VimEnter * nested call SetDynamicListChars()
 augroup END
 
-" Remove ^M / \r character from paste
+" Remove ^M / \r character from paste (Windows problem)
 function! StripCR()
     for l:ln in range(line("'["), line("']"))
         let l:text = getline(l:ln)
