@@ -84,7 +84,7 @@ end
 function _sfg_confirm
     set id $_sfg_ids[$_sfg_sel]
     _sfg_cleanup
-    fg %$id
+    fg %$id 2>/dev/null
     commandline -f repaint
 end
 
@@ -102,7 +102,7 @@ function smart_fg
         return
     else if test $job_count -eq 1
         set job_id (jobs | string match -r '^\s*(\d+)' | string trim)
-        fg %$job_id
+        fg %$job_id 2>/dev/null
         commandline -f repaint
         return
     end
@@ -208,7 +208,7 @@ if status is-interactive
 		stty -echo -icanon min 0 time 0 2>/dev/null
 			
 		for i in 3 2 1
-			printf "\rLaunching labwc in %s... (press any key to cancel)" $i
+			printf "\rLaunching gnome in %s... (press any key to cancel)" $i
 			sleep 1
 			# after sleeping, check if a byte is waiting
 			if dd if=/dev/tty bs=1 count=1 2>/dev/null | string length -q
@@ -220,7 +220,7 @@ if status is-interactive
 		stty echo icanon 2>/dev/null
 		echo
 		if test "$launch" = true
-			labwc
+            #labwc
 		end
 	end
 
@@ -228,6 +228,9 @@ if status is-interactive
 		set -g _bool_init 1
 		_init
 	end
+end
+
+function fish_job_summary
 end
 
 function fish_prompt
