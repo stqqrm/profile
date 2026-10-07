@@ -3,7 +3,7 @@
 size = 24
 
 [window]
-opacity = 0.8
+opacity = 1.0
 
 [colors.primary]
 background = "#282828"
@@ -92,4 +92,3 @@ chars = "\u001b[57;5u"
 key = "0"
 mods = "Control"
 chars = "\u001b[48;5u"  
- 
