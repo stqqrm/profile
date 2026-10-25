@@ -240,6 +240,8 @@ _dir_track() {
 }
 add-zsh-hook chpwd _dir_track
 
+_tmux_refresh() { [[ -n $TMUX ]] && { tmux refresh-client -S &! } 2>/dev/null }
+
 _dir_go_back() {
     (( $#_dir_back )) || return 0
     local cur=$PWD target=$_dir_back[-1]
@@ -247,6 +249,7 @@ _dir_go_back() {
     _dir_nav=1
     builtin cd -- $target 2>/dev/null && _dir_fwd+=($cur)
     _dir_nav=0
+    _tmux_refresh
     zle reset-prompt
 }
 _dir_go_fwd() {
@@ -256,6 +259,7 @@ _dir_go_fwd() {
     _dir_nav=1
     builtin cd -- $target 2>/dev/null && _dir_back+=($cur)
     _dir_nav=0
+    _tmux_refresh
     zle reset-prompt
 }
 zle -N _dir_go_back

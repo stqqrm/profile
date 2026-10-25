@@ -95,3 +95,8 @@ chars = "\u001b[57;5u"
 key = "0"
 mods = "Control"
 chars = "\u001b[48;5u"
+
+[[keyboard.bindings]]
+key = "I"
+mods = "Control"
+chars = "\u001b[105;5u"
