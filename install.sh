@@ -42,6 +42,7 @@ sudo rm -fr /etc/tmux
 sudo rm -f /etc/tmux.conf
 sudo rm -fr /etc/fastfetch
 sudo rm -fr /etc/alacritty
+sudo rm -fr /etc/xdg/alacritty
 
 # Install new configs
 sudo cp vconsole.conf /etc/vconsole.conf
@@ -54,6 +55,7 @@ sudo cp -r tmux /etc/tmux
 sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
 sudo cp -r fastfetch /etc/fastfetch
 sudo cp -r alacritty /etc/alacritty
+sudo cp -r alacritty /etc/xdg/alacritty
 
 # Make sure zsh and fish are valid login shells
 for sh in zsh fish; do
