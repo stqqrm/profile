@@ -1,24 +1,27 @@
 # alacritty.toml
+[general]
+live_config_reload = true
+
 [font]
-size = 24
+size = 18
 
 [window]
 opacity = 1.0
 
 [colors.primary]
-background = "#282828"
+background = "#080808"
 foreground = "#ebdbb2"
 
 [colors.cursor]
-text = "#282828"
+text = "#080808"
 cursor = "#ebdbb2"
 
 [colors.selection]
-text = "#282828"
+text = "#080808"
 background = "#ebdbb2"
 
 [colors.normal]
-black   = "#282828"
+black   = "#080808"
 red     = "#cc241d"
 green   = "#98971a"
 yellow  = "#d79921"
@@ -28,7 +31,7 @@ cyan    = "#689d6a"
 white   = "#a89984"
 
 [colors.bright]
-black   = "#726354"
+black   = "#524334"
 red     = "#fb4934"
 green   = "#b8bb26"
 yellow  = "#fabd2f"
@@ -91,4 +94,4 @@ chars = "\u001b[57;5u"
 [[keyboard.bindings]]
 key = "0"
 mods = "Control"
-chars = "\u001b[48;5u"  
+chars = "\u001b[48;5u"

@@ -3,7 +3,23 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-sudo pacman -S --needed terminus-font gvim tmux fish nodejs npm clang universal-ctags fzf fastfetch
+# Distro check Arch or Debian
+. /etc/os-release
+distro=" ${ID:-} ${ID_LIKE:-} "
+
+if [[ $distro == *" arch "* ]]; then
+    sudo pacman -S --needed terminus-font gvim tmux fish zsh \
+        zsh-autosuggestions zsh-syntax-highlighting \
+        nodejs npm clang universal-ctags fzf fastfetch
+elif [[ $distro == *" debian "* ]]; then
+    sudo apt-get update
+    sudo apt-get install -y xfonts-terminus vim-gtk3 tmux fish zsh \
+        zsh-autosuggestions zsh-syntax-highlighting \
+        nodejs npm clang universal-ctags fzf fastfetch
+else
+    echo "Unsupported distro: ${PRETTY_NAME:-unknown} (need Arch or Debian based)" >&2
+    exit 1
+fi
 
 # Install TTY color palette
 sudo cp vtrgb /etc/vtrgb
@@ -19,33 +35,36 @@ sudo systemctl restart vtrgb.path
 # Remove old configs
 sudo rm -f /etc/vconsole.conf
 sudo rm -f /etc/fish/config.fish
-sudo rm -rf /etc/vim
+sudo rm -fr /etc/zsh
+sudo rm -fr /etc/vim
 sudo rm -f /etc/vimrc
-sudo rm -rf /etc/tmux
+sudo rm -fr /etc/tmux
 sudo rm -f /etc/tmux.conf
-sudo rm -rf /etc/fastfetch
+sudo rm -fr /etc/fastfetch
+sudo rm -fr /etc/alacritty
 
 # Install new configs
 sudo cp vconsole.conf /etc/vconsole.conf
-
 sudo mkdir -p /etc/fish
 sudo cp fish/config.fish /etc/fish/config.fish
-
+sudo cp -r zsh /etc/zsh
 sudo cp -r vim /etc/vim
 sudo ln -sf /etc/vim/vimrc /etc/vimrc
-
 sudo cp -r tmux /etc/tmux
 sudo ln -sf /etc/tmux/tmux.conf /etc/tmux.conf
-
 sudo cp -r fastfetch /etc/fastfetch
+sudo cp -r alacritty /etc/alacritty
 
-# Make sure fish is a valid login shell
-if ! grep -qx "$(command -v fish)" /etc/shells; then
-    echo "$(command -v fish)" | sudo tee -a /etc/shells >/dev/null
-fi
+# Make sure zsh and fish are valid login shells
+for sh in zsh fish; do
+    p="$(command -v $sh)"
+    if ! grep -qx "$p" /etc/shells; then
+        echo "$p" | sudo tee -a /etc/shells >/dev/null
+    fi
+done
 
-# Change the invoking user's default shell
-sudo chsh -s "$(command -v fish)" $USER
+sudo chsh -s "$(command -v zsh)" "$USER"
 
+zsh -n /etc/zsh/zshrc
 fish -c "source /etc/fish/config.fish"
-printf '\033[32mInstallation complete.\033[0m\n'
+printf '\033[32mInstallation complete. Log out and back in for zsh to take effect.\033[0m\n'
