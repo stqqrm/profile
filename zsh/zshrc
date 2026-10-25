@@ -1,29 +1,18 @@
-# ~/.zshrc  --  /etc/zsh/zshrc
-# Packages: zsh zsh-autosuggestions zsh-syntax-highlighting fzf (zsh-completions optional)
-
+# /etc/zsh/zshrc
 export XDG_RUNTIME_DIR=/run/user/$UID
 
-# --- Options ---------------------------------------------------------------
 setopt EXTENDED_GLOB INTERACTIVE_COMMENTS NO_BEEP PROMPT_SUBST
 setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
 setopt COMPLETE_IN_WORD ALWAYS_TO_END LIST_PACKED
 unsetopt PROMPT_SP
 bindkey -e
-KEYTIMEOUT=1                    # bare Esc fires fast; Alt/arrow sequences still match
-WORDCHARS=''                    # word motions stop at / . -
+KEYTIMEOUT=1
+WORDCHARS=''
 
-# Tab stops every 4 columns, set with cursor escapes (`tabs 4` writes a row of
-# spaces, which wraps into a blank line if the window resizes during startup)
-_set_tabs() {
-    local c
-    print -n '\e[3g\r'
-    for (( c = 5; c <= 400; c += 4 )); do print -n "\e[${c}G\eH"; done
-    print -n '\r'
-}
-_set_tabs; unfunction _set_tabs
 export LESS='-R -x4'
 
-# --- History ---------------------------------------------------------------
+[[ -d ~/.cache/zsh ]] || mkdir -p ~/.cache/zsh
+
 HISTFILE=${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history
 HISTSIZE=100000
 SAVEHIST=100000
@@ -31,9 +20,17 @@ SAVEHIST=100000
 setopt SHARE_HISTORY EXTENDED_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE
 setopt HIST_REDUCE_BLANKS HIST_FIND_NO_DUPS
 
-# --- Colors ----------------------------------------------------------------
 if (( $+commands[dircolors] )); then
-    if [[ -r ~/.dircolors ]]; then eval "$(dircolors -b ~/.dircolors)"; else eval "$(dircolors -b)"; fi
+    _dc=~/.cache/zsh/dircolors.zsh
+    if [[ ! -s $_dc || ( -f ~/.dircolors && ~/.dircolors -nt $_dc ) ]]; then
+        if [[ -r ~/.dircolors ]]; then
+            dircolors -b ~/.dircolors >$_dc 2>/dev/null
+        else
+            dircolors -b >$_dc 2>/dev/null
+        fi
+    fi
+    source $_dc
+    unset _dc
 fi
 
 alias ls='ls --color=auto'
@@ -51,18 +48,16 @@ export LESS_TERMCAP_ue=$'\e[0m'
 export LESS_TERMCAP_so=$'\e[30;43m'
 export LESS_TERMCAP_se=$'\e[0m'
 
-# --- Completion ------------------------------------------------------------
 [[ -d /usr/share/zsh-completions ]] && fpath+=(/usr/share/zsh-completions)
 [[ -d ~/.zsh/completions ]] && fpath+=(~/.zsh/completions)
 
 autoload -Uz compinit
-mkdir -p ~/.cache/zsh
-# rebuild the dump once a day, otherwise trust the cache
 if [[ -n ~/.cache/zsh/zcompdump(#qN.mh+24) ]]; then
     compinit -d ~/.cache/zsh/zcompdump
 else
     compinit -C -d ~/.cache/zsh/zcompdump
 fi
+[[ ~/.cache/zsh/zcompdump.zwc -nt ~/.cache/zsh/zcompdump ]] || zcompile ~/.cache/zsh/zcompdump 2>/dev/null
 
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
@@ -77,7 +72,6 @@ zstyle ':completion:*:*:kill:*' menu yes select
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:cd:*' tag-order local-directories directory-stack path-directories
 
-# --- Plugins ---------------------------------------------------------------
 _source_first() {
     local f
     for f in "$@"; do
@@ -86,15 +80,14 @@ _source_first() {
     return 1
 }
 
-ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_STRATEGY=(history)
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=200
 _source_first \
     /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
     /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
     ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-# syntax highlighting is sourced at the bottom (must be last)
 
-# --- Key bindings ----------------------------------------------------------
 autoload -Uz add-zsh-hook up-line-or-beginning-search down-line-or-beginning-search edit-command-line
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
@@ -119,29 +112,32 @@ bindkey '^[[Z' reverse-menu-complete
 bindkey '^[^?' backward-kill-word
 bindkey '^X^E' edit-command-line
 
-# Esc: tmux copy-mode
 _esc_widget() { [[ -n $TMUX ]] && tmux copy-mode 2>/dev/null; return 0 }
 zle -N _esc_widget
 bindkey '^[' _esc_widget
 
-# --- fzf -------------------------------------------------------------------
-(( $+commands[fzf] )) && source <(fzf --zsh)    # Ctrl-R history, Alt-C cd
+(( $+commands[fzf] )) && source <(fzf --zsh)
 
-# Ctrl-G: fuzzy cd into a subdirectory
+if (( $+commands[fd] )); then
+    _lsdirs()  { fd -t d -H -E .git }
+    _lsfiles() { fd -t f -H -E .git }
+else
+    _lsdirs()  { find . -type d -not -path '*/.git/*' 2>/dev/null }
+    _lsfiles() { find . -type f -not -path '*/.git/*' 2>/dev/null }
+fi
+
 _fzf_dir() {
     local dir
-    dir=$(find . -type d 2>/dev/null \
-        | fzf -i --exact --query="$BUFFER" --preview='ls {}' --height=40% --reverse)
+    dir=$(_lsdirs | fzf -i --exact --query="$BUFFER" --preview='ls {}' --height=40% --reverse)
     [[ -n $dir ]] && builtin cd -- "$dir"
     zle reset-prompt
 }
 zle -N _fzf_dir
 bindkey '^G' _fzf_dir
 
-# Ctrl-T: fuzzy-pick a file and open it in vim
 _fzf_file() {
     local file
-    file=$(find . -type f 2>/dev/null | fzf -i --exact --preview='cat {}' --height=40% --reverse)
+    file=$(_lsfiles | fzf -i --exact --preview='head -100 {}' --height=40% --reverse)
     if [[ -n $file ]]; then
         zle push-input
         BUFFER="vim ${(q)${file#./}}"
@@ -153,9 +149,6 @@ _fzf_file() {
 zle -N _fzf_file
 bindkey '^T' _fzf_file
 
-# --- Jobs: Ctrl-Z = smart fg (1 job: fg, several: fzf picker) --------------
-# The widget only queues a command; the picker and `fg` run outside ZLE
-# (running them inside a widget hangs the terminal).
 _smart_fg_run() {
     local -a ids cur prev rest
     local k id sel list=""
@@ -172,7 +165,6 @@ _smart_fg_run() {
     id=$ids[1]
     if (( $#ids > 1 )); then
         for k in $ids; do list+="$k  ${jobstates[$k]%%:*}  ${jobtexts[$k]}"$'\n'; done
-        # SIGTSTP is ignored in the picker so a stray Ctrl-Z can't stop fzf
         sel=$(trap '' TSTP; print -rn -- "$list" \
             | fzf --height=40% --reverse --prompt='Jobs> ' --bind='ctrl-z:accept' \
                   --tiebreak=index --header='Enter / Ctrl-Z: fg   Esc: cancel') || return 0
@@ -191,7 +183,6 @@ _smart_fg() {
 zle -N _smart_fg
 bindkey '^Z' _smart_fg
 
-# Hide zsh's job chatter ("suspended", "continued") by erasing it afterwards
 typeset -gi _noise_echo=0 _noise_fg=0
 typeset -g  _noise_cmd=''
 
@@ -204,19 +195,18 @@ _noise_precmd() {
     _noise_cmd=''
     if [[ -n $cmd ]]; then
         (( _noise_fg )) || [[ $cmd == (fg|bg)(|\ *) || $cmd == %* ]] && (( n += 1 ))
-        (( st == 148 )) && (( n += 2 ))     # Ctrl-Z: "suspended" line + blank line
+        (( st == 148 )) && (( n += 2 ))
     fi
     _noise_echo=0
     _noise_fg=0
     (( n )) && print -n "\e[${n}A\r\e[J"
 }
 add-zsh-hook preexec _noise_preexec
-precmd_functions=(_noise_precmd ${precmd_functions:#_noise_precmd})   # first, keeps $?
+precmd_functions=(_noise_precmd ${precmd_functions:#_noise_precmd})
 
-# After Ctrl-Z, resume the job in the background instead of leaving it stopped.
-# Programs that need the terminal would just stop again, so they stay stopped.
 typeset -ga _bg_keep_stopped=(vim nvim vi nano less man htop btop top ssh fzf)
 _autobg_precmd() {
+    (( ${#jobstates} )) || return 0
     local k cmd
     for k in ${(k)jobstates}; do
         [[ ${jobstates[$k]%%:*} == suspended* ]] || continue
@@ -227,7 +217,6 @@ _autobg_precmd() {
 }
 add-zsh-hook precmd _autobg_precmd
 
-# --- Directory history: Ctrl-O back, Ctrl-I / Ctrl-] / Alt-I forward -------
 typeset -ga _dir_back _dir_fwd
 typeset -gi _dir_nav=0
 
@@ -267,9 +256,8 @@ zle -N _dir_go_fwd
 bindkey '^O'  _dir_go_back
 bindkey '^[i' _dir_go_fwd
 bindkey '^]'  _dir_go_fwd
-bindkey '^[[105;5u' _dir_go_fwd     # Ctrl-I (needs the Alacritty binding, see alacritty.toml)
+bindkey '^[[105;5u' _dir_go_fwd
 
-# --- Functions -------------------------------------------------------------
 truecolor() {
     bash -c '
 n=$(tput cols)
@@ -294,21 +282,23 @@ printf "\e[0m\n"
 }
 
 logout() { loginctl terminate-user $USER }
-null() { "$@" >/dev/null 2>&1 &! }          # run detached and silenced
+null() { "$@" >/dev/null 2>&1 &! }
 
-# --- Prompt: user@host ~   (~ in $HOME, / in /, $ elsewhere) ---------------
-_prompt_loc() {
+typeset -g _ploc
+_prompt_loc_update() {
     case $PWD in
-        $HOME) print -rn -- '~' ;;
-        /)     print -rn -- '/' ;;
-        *)     print -rn -- '$' ;;
+        $HOME) _ploc='~' ;;
+        /)     _ploc='/' ;;
+        *)     _ploc='$' ;;
     esac
 }
-# steady block cursor, as a zero-width prompt sequence
-_cursor_block=$'%{\e[2 q%}'
-PROMPT="${_cursor_block}"'%B%F{11}%n%f%b@%B%F{red}%M%f%b $(_prompt_loc) '
+add-zsh-hook precmd _prompt_loc_update
+add-zsh-hook chpwd _prompt_loc_update
+_prompt_loc_update
 
-# --- tty1 login: 3 second countdown before launching the session -----------
+_cursor_block=$'%{\e[2 q%}'
+PROMPT="${_cursor_block}"'%B%F{11}%n%f%b@%B%F{red}%M%f%b ${_ploc} '
+
 _tty1_launch() {
     local launch=true i
     for i in 3 2 1; do
@@ -317,7 +307,7 @@ _tty1_launch() {
     done
     echo
     if [[ $launch == true ]]; then
-        : # labwc
+        :
     fi
 }
 if [[ -o login && -z $WAYLAND_DISPLAY && $(tty) == /dev/tty1 ]]; then
@@ -325,7 +315,6 @@ if [[ -o login && -z $WAYLAND_DISPLAY && $(tty) == /dev/tty1 ]]; then
 fi
 unfunction _tty1_launch 2>/dev/null
 
-# --- Syntax highlighting (must be sourced last) ----------------------------
 _source_first \
     /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
     /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
@@ -346,8 +335,6 @@ if (( ${+ZSH_HIGHLIGHT_STYLES} )); then
     ZSH_HIGHLIGHT_STYLES[commandseparator]='fg=cyan'
 fi
 
-# --- tmux autostart (skip with NO_TMUX=1; never for root) ------------------
-# Prefix the tmux line with `exec` to close the terminal when tmux exits.
 _tmux_autostart() {
     [[ -z $TMUX ]] && (( ! ${+NO_TMUX} )) && (( EUID != 0 )) && (( $+commands[tmux] )) || return 0
     tmux new-session -d -s "$USER-$$" \; \
