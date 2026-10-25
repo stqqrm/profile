@@ -207,11 +207,14 @@ precmd_functions=(_noise_precmd ${precmd_functions:#_noise_precmd})
 typeset -ga _bg_keep_stopped=(vim nvim vi nano less man htop btop top ssh fzf)
 _autobg_precmd() {
     (( ${#jobstates} )) || return 0
-    local k cmd
+    local k w
+    local -a words
     for k in ${(k)jobstates}; do
         [[ ${jobstates[$k]%%:*} == suspended* ]] || continue
-        cmd=${${(z)jobtexts[$k]}[1]:t}
-        (( ${_bg_keep_stopped[(Ie)$cmd]} )) && continue
+        words=(${(z)jobtexts[$k]})
+        for w in $words; do
+            (( ${_bg_keep_stopped[(Ie)${w:t}]} )) && continue 2
+        done
         bg %$k >/dev/null 2>&1
     done
 }
