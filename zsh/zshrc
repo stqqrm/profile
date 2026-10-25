@@ -297,7 +297,7 @@ add-zsh-hook chpwd _prompt_loc_update
 _prompt_loc_update
 
 _cursor_block=$'%{\e[2 q%}'
-PROMPT="${_cursor_block}"'%B%F{11}%n%f%b@%B%F{red}%M%f%b ${_ploc} '
+PROMPT="${_cursor_block}"'%B%F{11}%n%f%b@%B%F{9}%M%f%b ${_ploc} '
 
 _tty1_launch() {
     local launch=true i
