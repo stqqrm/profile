@@ -1,49 +1,39 @@
-# ~/.zshrc  --  drop-in replacement for the fish config
-#
-# Arch packages:
-#   sudo pacman -S zsh zsh-autosuggestions zsh-syntax-highlighting \
-#                  zsh-completions fzf
-# Then: chsh -s /usr/bin/zsh
+# ~/.zshrc  --  /etc/zsh/zshrc
+# Packages: zsh zsh-autosuggestions zsh-syntax-highlighting fzf (zsh-completions optional)
 
-# ---------------------------------------------------------------------------
-# Environment
-# ---------------------------------------------------------------------------
 export XDG_RUNTIME_DIR=/run/user/$UID
 
-# ---------------------------------------------------------------------------
-# Options
-# ---------------------------------------------------------------------------
-setopt EXTENDED_GLOB INTERACTIVE_COMMENTS NO_BEEP
-setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT   # type a dir name to cd into it
-setopt AUTO_MENU AUTO_LIST COMPLETE_IN_WORD ALWAYS_TO_END LIST_PACKED
-setopt PROMPT_SUBST
-bindkey -e                                       # emacs keymap
-KEYTIMEOUT=1                                     # bare Esc fires after 10ms (Alt-combos still work)
+# --- Options ---------------------------------------------------------------
+setopt EXTENDED_GLOB INTERACTIVE_COMMENTS NO_BEEP PROMPT_SUBST
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
+setopt COMPLETE_IN_WORD ALWAYS_TO_END LIST_PACKED
+unsetopt PROMPT_SP
+bindkey -e
+KEYTIMEOUT=1                    # bare Esc fires fast; Alt/arrow sequences still match
+WORDCHARS=''                    # word motions stop at / . -
 
-# Tab = 4 columns (terminal tab stops, and in less/man/git pagers)
-(( $+commands[tabs] )) && tabs 4
+# Tab stops every 4 columns, set with cursor escapes (`tabs 4` writes a row of
+# spaces, which wraps into a blank line if the window resizes during startup)
+_set_tabs() {
+    local c
+    print -n '\e[3g\r'
+    for (( c = 5; c <= 400; c += 4 )); do print -n "\e[${c}G\eH"; done
+    print -n '\r'
+}
+_set_tabs; unfunction _set_tabs
 export LESS='-R -x4'
-WORDCHARS=''                                     # word motions stop at / . - like fish
 
-# ---------------------------------------------------------------------------
-# History (shared between all shells, like fish)
-# ---------------------------------------------------------------------------
+# --- History ---------------------------------------------------------------
 HISTFILE=${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history
 HISTSIZE=100000
 SAVEHIST=100000
 [[ -d ${HISTFILE:h} ]] || mkdir -p ${HISTFILE:h}
-setopt SHARE_HISTORY EXTENDED_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_ALL_DUPS
-setopt HIST_IGNORE_SPACE HIST_REDUCE_BLANKS HIST_FIND_NO_DUPS
+setopt SHARE_HISTORY EXTENDED_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE
+setopt HIST_REDUCE_BLANKS HIST_FIND_NO_DUPS
 
-# ---------------------------------------------------------------------------
-# Colors: ls, grep, man, completion lists
-# ---------------------------------------------------------------------------
+# --- Colors ----------------------------------------------------------------
 if (( $+commands[dircolors] )); then
-    if [[ -r ~/.dircolors ]]; then
-        eval "$(dircolors -b ~/.dircolors)"
-    else
-        eval "$(dircolors -b)"
-    fi
+    if [[ -r ~/.dircolors ]]; then eval "$(dircolors -b ~/.dircolors)"; else eval "$(dircolors -b)"; fi
 fi
 
 alias ls='ls --color=auto'
@@ -61,15 +51,13 @@ export LESS_TERMCAP_ue=$'\e[0m'
 export LESS_TERMCAP_so=$'\e[30;43m'
 export LESS_TERMCAP_se=$'\e[0m'
 
-# ---------------------------------------------------------------------------
-# Completion (fish-style pager menu, case-insensitive, colored)
-# ---------------------------------------------------------------------------
+# --- Completion ------------------------------------------------------------
 [[ -d /usr/share/zsh-completions ]] && fpath+=(/usr/share/zsh-completions)
 [[ -d ~/.zsh/completions ]] && fpath+=(~/.zsh/completions)
 
 autoload -Uz compinit
 mkdir -p ~/.cache/zsh
-# only rebuild the dump once a day, otherwise trust the cache (fast startup)
+# rebuild the dump once a day, otherwise trust the cache
 if [[ -n ~/.cache/zsh/zcompdump(#qN.mh+24) ]]; then
     compinit -d ~/.cache/zsh/zcompdump
 else
@@ -89,9 +77,7 @@ zstyle ':completion:*:*:kill:*' menu yes select
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:cd:*' tag-order local-directories directory-stack path-directories
 
-# ---------------------------------------------------------------------------
-# Plugins: autosuggestions + syntax highlighting (like fish)
-# ---------------------------------------------------------------------------
+# --- Plugins ---------------------------------------------------------------
 _source_first() {
     local f
     for f in "$@"; do
@@ -106,24 +92,18 @@ _source_first \
     /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
     /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
     ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+# syntax highlighting is sourced at the bottom (must be last)
 
-# (syntax highlighting is sourced at the very bottom -- it must be last)
-
-# ---------------------------------------------------------------------------
-# Key bindings
-# ---------------------------------------------------------------------------
-autoload -Uz add-zsh-hook
-autoload -Uz up-line-or-beginning-search down-line-or-beginning-search edit-command-line
+# --- Key bindings ----------------------------------------------------------
+autoload -Uz add-zsh-hook up-line-or-beginning-search down-line-or-beginning-search edit-command-line
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
 zle -N edit-command-line
 
-# Up/Down: search history by what you've typed so far (fish behaviour)
 bindkey '^[[A' up-line-or-beginning-search
 bindkey '^[OA' up-line-or-beginning-search
 bindkey '^[[B' down-line-or-beginning-search
 bindkey '^[OB' down-line-or-beginning-search
-
 bindkey '^[[H'  beginning-of-line
 bindkey '^[[1~' beginning-of-line
 bindkey '^[OH'  beginning-of-line
@@ -131,50 +111,40 @@ bindkey '^[[F'  end-of-line
 bindkey '^[[4~' end-of-line
 bindkey '^[OF'  end-of-line
 bindkey '^[[3~' delete-char
-bindkey '^[[1;5C' forward-word       # Ctrl-Right (also partially accepts a suggestion)
+bindkey '^[[1;5C' forward-word
 bindkey '^[[1;5D' backward-word
-bindkey '^[[1;3C' forward-word       # Alt-Right
+bindkey '^[[1;3C' forward-word
 bindkey '^[[1;3D' backward-word
-bindkey '^[[Z' reverse-menu-complete # Shift-Tab
-bindkey '^[^?' backward-kill-word    # Alt-Backspace
+bindkey '^[[Z' reverse-menu-complete
+bindkey '^[^?' backward-kill-word
 bindkey '^X^E' edit-command-line
 
-# Esc: open tmux copy-mode (does nothing outside tmux)
-_esc_widget() {
-    [[ -n $TMUX ]] && tmux copy-mode 2>/dev/null
-    return 0
-}
+# Esc: tmux copy-mode
+_esc_widget() { [[ -n $TMUX ]] && tmux copy-mode 2>/dev/null; return 0 }
 zle -N _esc_widget
 bindkey '^[' _esc_widget
 
-# ---------------------------------------------------------------------------
-# fzf
-# ---------------------------------------------------------------------------
+# --- fzf -------------------------------------------------------------------
 (( $+commands[fzf] )) && source <(fzf --zsh)    # Ctrl-R history, Alt-C cd
 
-# Ctrl-G : fuzzy cd into a subdirectory (buffer text is used as the query)
+# Ctrl-G: fuzzy cd into a subdirectory
 _fzf_dir() {
     local dir
     dir=$(find . -type d 2>/dev/null \
-        | fzf -i --exact --query="$BUFFER" \
-              --preview='ls {}' --height=40% --reverse)
-    if [[ -n $dir ]]; then
-        builtin cd -- "$dir"
-    fi
+        | fzf -i --exact --query="$BUFFER" --preview='ls {}' --height=40% --reverse)
+    [[ -n $dir ]] && builtin cd -- "$dir"
     zle reset-prompt
 }
 zle -N _fzf_dir
 bindkey '^G' _fzf_dir
 
-# Ctrl-T : fuzzy-pick a file and open it in vim
+# Ctrl-T: fuzzy-pick a file and open it in vim
 _fzf_file() {
     local file
-    file=$(find . -type f 2>/dev/null \
-        | fzf -i --exact --preview='cat {}' --height=40% --reverse)
+    file=$(find . -type f 2>/dev/null | fzf -i --exact --preview='cat {}' --height=40% --reverse)
     if [[ -n $file ]]; then
-        file=${file#./}
-        zle push-input                  # whatever you'd typed comes back after vim
-        BUFFER="vim ${(q)file}"
+        zle push-input
+        BUFFER="vim ${(q)${file#./}}"
         zle accept-line
     else
         zle reset-prompt
@@ -183,17 +153,12 @@ _fzf_file() {
 zle -N _fzf_file
 bindkey '^T' _fzf_file
 
-# ---------------------------------------------------------------------------
-# Ctrl-Z : smart fg  (0 jobs: nothing, 1 job: fg, many: fzf picker)
-# ---------------------------------------------------------------------------
-
-# The widget only queues a command line. The picker and `fg` then run as a
-# normal foreground command, outside ZLE -- running fzf and fg *inside* a
-# widget is what made the terminal hang.
+# --- Jobs: Ctrl-Z = smart fg (1 job: fg, several: fzf picker) --------------
+# The widget only queues a command; the picker and `fg` run outside ZLE
+# (running them inside a widget hangs the terminal).
 _smart_fg_run() {
-    # most recent first: current job (+), previous job (-), then the rest newest-number first
     local -a ids cur prev rest
-    local k
+    local k id sel list=""
     for k in ${(kno)jobtexts}; do
         case ${${(s.:.)jobstates[$k]}[2]} in
             +) cur=($k) ;;
@@ -204,17 +169,13 @@ _smart_fg_run() {
     ids=($cur $prev $rest)
     (( $#ids )) || return 0
 
-    local id=$ids[1] sel list=""
+    id=$ids[1]
     if (( $#ids > 1 )); then
-        for k in $ids; do
-            list+="$k  ${jobstates[$k]%%:*}  ${jobtexts[$k]}"$'\n'
-        done
-        # Ctrl-Z acts like Enter; SIGTSTP is ignored inside the picker so a stray
-        # Ctrl-Z can never stop fzf (that is what wedged the shell)
+        for k in $ids; do list+="$k  ${jobstates[$k]%%:*}  ${jobtexts[$k]}"$'\n'; done
+        # SIGTSTP is ignored in the picker so a stray Ctrl-Z can't stop fzf
         sel=$(trap '' TSTP; print -rn -- "$list" \
-            | fzf --height=40% --reverse --prompt='Jobs> ' \
-                  --bind='ctrl-z:accept' --tiebreak=index \
-                  --header='Enter / Ctrl-Z: fg   Esc: cancel') || return 0
+            | fzf --height=40% --reverse --prompt='Jobs> ' --bind='ctrl-z:accept' \
+                  --tiebreak=index --header='Enter / Ctrl-Z: fg   Esc: cancel') || return 0
         id=${sel%% *}
     fi
     _noise_fg=1
@@ -222,7 +183,7 @@ _smart_fg_run() {
 }
 _smart_fg() {
     (( ${#jobtexts} )) || return 0
-    zle push-input                  # whatever you'd typed comes back afterwards
+    zle push-input
     BUFFER=' _smart_fg_run'
     _noise_echo=1
     zle accept-line
@@ -230,39 +191,30 @@ _smart_fg() {
 zle -N _smart_fg
 bindkey '^Z' _smart_fg
 
-# Hide zsh's own job chatter ("zsh: suspended  vim .", "[1]  + continued  vim .").
-# zsh has no option to silence these, so they are erased after the fact.
-typeset -gi _noise_echo=0
-typeset -gi _noise_fg=0
+# Hide zsh's job chatter ("suspended", "continued") by erasing it afterwards
+typeset -gi _noise_echo=0 _noise_fg=0
 typeset -g  _noise_cmd=''
-typeset -gi _JOB_STOP_LINES=2    # lines printed when a job is stopped with Ctrl-Z
 
 _noise_preexec() {
     _noise_cmd=$1
-    (( _noise_echo )) && print -n "\e[1A\r\e[J"    # wipe the queued ' _smart_fg_run' line
+    (( _noise_echo )) && print -n "\e[1A\r\e[J"
 }
 _noise_precmd() {
     local st=$? n=0 cmd=$_noise_cmd
     _noise_cmd=''
     if [[ -n $cmd ]]; then
-        # "[1]  + continued  ..." is printed by fg / bg / %N
-        if (( _noise_fg )) || [[ $cmd == (fg|bg)(|\ *) || $cmd == %* ]]; then
-            (( n += 1 ))
-        fi
-        # "zsh: suspended  ..." (plus the blank line before it): status 148 = SIGTSTP
-        (( st == 148 )) && (( n += _JOB_STOP_LINES ))
+        (( _noise_fg )) || [[ $cmd == (fg|bg)(|\ *) || $cmd == %* ]] && (( n += 1 ))
+        (( st == 148 )) && (( n += 2 ))     # Ctrl-Z: "suspended" line + blank line
     fi
     _noise_echo=0
     _noise_fg=0
     (( n )) && print -n "\e[${n}A\r\e[J"
 }
 add-zsh-hook preexec _noise_preexec
-precmd_functions=(_noise_precmd ${precmd_functions:#_noise_precmd})   # run first, keeps $?
+precmd_functions=(_noise_precmd ${precmd_functions:#_noise_precmd})   # first, keeps $?
 
-# Ctrl-Z normally leaves the job *stopped* (frozen). Instead, resume it in the
-# background right away so it keeps running. Programs that need the terminal
-# (editors, pagers, ...) would just stop again on tty input, so they are left
-# stopped -- add to this list as needed.
+# After Ctrl-Z, resume the job in the background instead of leaving it stopped.
+# Programs that need the terminal would just stop again, so they stay stopped.
 typeset -ga _bg_keep_stopped=(vim nvim vi nano less man htop btop top ssh fzf)
 _autobg_precmd() {
     local k cmd
@@ -273,12 +225,9 @@ _autobg_precmd() {
         bg %$k >/dev/null 2>&1
     done
 }
-add-zsh-hook precmd _autobg_precmd      # added after _noise_precmd, so it runs after it
+add-zsh-hook precmd _autobg_precmd
 
-# ---------------------------------------------------------------------------
-# Directory history: Ctrl-O = back, Ctrl-] or Alt-I = forward
-# (Ctrl-I is the same byte as Tab in a terminal, so it can't be bound.)
-# ---------------------------------------------------------------------------
+# --- Directory history: Ctrl-O back, Ctrl-I / Ctrl-] / Alt-I forward -------
 typeset -ga _dir_back _dir_fwd
 typeset -gi _dir_nav=0
 
@@ -314,19 +263,16 @@ zle -N _dir_go_fwd
 bindkey '^O'  _dir_go_back
 bindkey '^[i' _dir_go_fwd
 bindkey '^]'  _dir_go_fwd
+bindkey '^[[105;5u' _dir_go_fwd     # Ctrl-I (needs the Alacritty binding, see alacritty.toml)
 
-# ---------------------------------------------------------------------------
-# Functions
-# ---------------------------------------------------------------------------
+# --- Functions -------------------------------------------------------------
 truecolor() {
     bash -c '
 n=$(tput cols)
-
 for ((i=0;i<n*2;i++)); do
     h=$((i*360/(n*2)))
     x=$((h/60))
     p=$((h%60*255/60))
-
     case $x in
         0) r=255; g=$p; b=0 ;;
         1) r=$((255-p)); g=255; b=0 ;;
@@ -335,53 +281,35 @@ for ((i=0;i<n*2;i++)); do
         4) r=$p; g=0; b=255 ;;
         5) r=255; g=0; b=$((255-p)) ;;
     esac
-
-    if ((i%2)); then
-        printf "\e[38;2;%d;%d;%dm▐" "$r" "$g" "$b"
-    else
-        printf "\e[48;2;%d;%d;%dm" "$r" "$g" "$b"
+    if ((i%2)); then printf "\e[38;2;%d;%d;%dm▐" "$r" "$g" "$b"
+    else printf "\e[48;2;%d;%d;%dm" "$r" "$g" "$b"
     fi
 done
-
 printf "\e[0m\n"
 '
 }
 
 logout() { loginctl terminate-user $USER }
+null() { "$@" >/dev/null 2>&1 &! }          # run detached and silenced
 
-# run a command detached, silenced, and disowned
-null() { "$@" >/dev/null 2>&1 &! }
-
-# ---------------------------------------------------------------------------
-# Prompt:  user@host ~      (bold yellow user, bold red host, ~ / / / $)
-# ---------------------------------------------------------------------------
+# --- Prompt: user@host ~   (~ in $HOME, / in /, $ elsewhere) ---------------
 _prompt_loc() {
-    if [[ $PWD == $HOME ]]; then
-        print -rn -- '~'
-    elif [[ $PWD == / ]]; then
-        print -rn -- '/'
-    else
-        print -rn -- '$'
-    fi
+    case $PWD in
+        $HOME) print -rn -- '~' ;;
+        /)     print -rn -- '/' ;;
+        *)     print -rn -- '$' ;;
+    esac
 }
-PROMPT='%B%F{11}%n%f%b@%B%F{red}%M%f%b $(_prompt_loc) '
+# steady block cursor, as a zero-width prompt sequence
+_cursor_block=$'%{\e[2 q%}'
+PROMPT="${_cursor_block}"'%B%F{11}%n%f%b@%B%F{red}%M%f%b $(_prompt_loc) '
 
-# Cursor: steady block (re-applied every prompt, so programs that change it
-# don't leave a different shape behind)
-_cursor_block() { print -n '\e[2 q' }
-add-zsh-hook precmd _cursor_block
-
-# ---------------------------------------------------------------------------
-# Login on tty1: 3 second countdown before launching the session
-# ---------------------------------------------------------------------------
+# --- tty1 login: 3 second countdown before launching the session -----------
 _tty1_launch() {
     local launch=true i
     for i in 3 2 1; do
         printf '\rLaunching gnome in %s... (press any key to cancel)' $i
-        if read -sk1 -t 1; then
-            launch=false
-            break
-        fi
+        if read -sk1 -t 1; then launch=false; break; fi
     done
     echo
     if [[ $launch == true ]]; then
@@ -393,9 +321,7 @@ if [[ -o login && -z $WAYLAND_DISPLAY && $(tty) == /dev/tty1 ]]; then
 fi
 unfunction _tty1_launch 2>/dev/null
 
-# ---------------------------------------------------------------------------
-# Syntax highlighting -- MUST be sourced last among the plugins
-# ---------------------------------------------------------------------------
+# --- Syntax highlighting (must be sourced last) ----------------------------
 _source_first \
     /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
     /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
@@ -416,21 +342,12 @@ if (( ${+ZSH_HIGHLIGHT_STYLES} )); then
     ZSH_HIGHLIGHT_STYLES[commandseparator]='fg=cyan'
 fi
 
-# ---------------------------------------------------------------------------
-# tmux auto-start (skip with NO_TMUX=1; never for root)
-# Prefix the tmux line with `exec` if you want the terminal to close
-# when tmux exits instead of dropping back to a bare zsh.
-# ---------------------------------------------------------------------------
-_tmux_wants_start() {
-    [[ -z $TMUX ]] && (( ! ${+NO_TMUX} )) && (( EUID != 0 )) && (( $+commands[tmux] ))
-}
-
+# --- tmux autostart (skip with NO_TMUX=1; never for root) ------------------
+# Prefix the tmux line with `exec` to close the terminal when tmux exits.
 _tmux_autostart() {
-    _tmux_wants_start || return 0
-    local session_name="$USER-$$"
-    tmux new-session -d -s $session_name \; \
-        new-window \; new-window \; new-window \; \
-        new-window \; \
+    [[ -z $TMUX ]] && (( ! ${+NO_TMUX} )) && (( EUID != 0 )) && (( $+commands[tmux] )) || return 0
+    tmux new-session -d -s "$USER-$$" \; \
+        new-window \; new-window \; new-window \; new-window \; \
         select-window -t 1 \; \
         set-option -g destroy-unattached on \; \
         attach >/dev/null 2>&1
