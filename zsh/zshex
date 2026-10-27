@@ -1,0 +1,558 @@
+# zshex - tiny file explorer for zsh, toggled with Ctrl-E
+#
+# Install:   source /path/to/zshex     (add to ~/.zshrc)
+# Use:       Ctrl-E opens a full-screen, colored listing of the current
+#            directory. Ctrl-E again (or q / Esc) closes it and gives you
+#            your terminal back exactly as it was.
+#
+# Row format:  -rw-rw-r--  1 stoorm stoorm 20.7MB  5d ago name
+#              names get an indicator: dir/  exec*  symlink@
+#
+# Navigation moves the REAL shell directory (plain `cd`), so you stay in
+# whatever directory you navigated to after closing.
+#
+# Order: sorted by file name (case-insensitive). "." and ".." stay on top,
+#        dotfiles / dotdirs group right below them.
+#
+# Keys while open:
+#   j / Down      move down            k / Up       move up
+#   PgDn / PgUp   page down / up       gg / G       first / last
+#   ~             go home
+#   Enter / l / Right   dir: cd into it   file: insert its name into the prompt
+#   - / h / Left / Backspace            go to parent directory
+#   gd            follow a symlink to its target (file: select it in its dir)
+#   Ctrl-O / Ctrl-I (Tab)               directory history back / forward
+#   / and ?       search forward / backward, n / N repeat
+#   Ctrl-E / q / Esc                    close
+#
+# Search (case-insensitive):
+#   "name"      matches entries in the current directory
+#   "dir/name"  searches all subdirectories (fd or find + fzf); a file result
+#               jumps to its directory and selects it, a directory result is
+#               entered
+# ---------------------------------------------------------------------------
+# Colors
+#   black red green yellow blue magenta cyan white
+#   brightblack brightred brightgreen brightyellow
+#   brightblue brightmagenta brightcyan brightwhite
+#   default (terminal default)   c0..c255 (256-color palette index)
+#
+# A value is a space-separated list of words: one color, plus any of
+#   bold dim italic underline reverse, and on_<color> for a background.
+#   e.g.  "bold brightblue"   "underline red"   "brightwhite on_blue"
+#
+# Groups:
+#   Header       top line                  Info         key-hint line
+#   Dir          directories (and . ..)    File         regular files
+#   HiddenDir    dot directories           HiddenFile   dot files
+#   Exec         executable files          Symlink      symlinks
+#   BrokenLink   dangling symlinks         Special      sockets, fifos, devices
+#   Visible      perms/links/owner/group/size/age of normal entries
+#   Hidden       perms/links/owner/group/size/age of dot entries
+#   NoStat       the whole perms/links/owner/group/size/age block when
+#                stat data is missing (shown as ---------- 0 root root ...)
+#
+# Override BEFORE sourcing zshex, e.g. in ~/.zshrc:
+#   typeset -A ZSHEX_PROFILE
+#   ZSHEX_PROFILE[Dir]="bold brightblue"
+#   ZSHEX_PROFILE[Hidden]="brightblack"
+#   ZSHEX_PROFILE[NoStat]="bold brightred"
+#   source ~/zshex
+# ---------------------------------------------------------------------------
+
+zmodload zsh/stat 2>/dev/null
+zmodload zsh/datetime 2>/dev/null
+
+typeset -gA ZSHEX_COLORS ZSHEX_PROFILE
+ZSHEX_COLORS=(
+  black 30        red 31          green 32        yellow 33
+  blue 34         magenta 35      cyan 36         white 37
+  brightblack 90  brightred 91    brightgreen 92  brightyellow 93
+  brightblue 94   brightmagenta 95 brightcyan 96  brightwhite 97
+)
+
+_zshex_default() { (( ${+ZSHEX_PROFILE[$1]} )) || ZSHEX_PROFILE[$1]=$2 }
+
+_zshex_default Header       "brightred"
+_zshex_default Info         "brightblack"
+_zshex_default Dir          "brightblue"
+_zshex_default File         "default"
+_zshex_default HiddenDir    "blue"
+_zshex_default HiddenFile   "white"
+_zshex_default Visible      "default"
+_zshex_default Hidden       "default"
+_zshex_default NoStat       "brightblack"
+_zshex_default Exec         "brightgreen"
+_zshex_default Symlink      "cyan"
+_zshex_default BrokenLink   "brightred"
+_zshex_default Special      "magenta"
+unfunction _zshex_default
+
+_zshex_sgr() {
+  emulate -L zsh
+  local w c
+  local -a codes
+  for w in ${=1}; do
+    case $w in
+      bold)      codes+=1 ;;
+      dim)       codes+=2 ;;
+      italic)    codes+=3 ;;
+      underline) codes+=4 ;;
+      reverse)   codes+=7 ;;
+      default|none) ;;
+      on_*)      c=${ZSHEX_COLORS[${w#on_}]}; [[ -n $c ]] && codes+=$(( c + 10 )) ;;
+      c<->)      codes+="38;5;${w#c}" ;;
+      *)         c=${ZSHEX_COLORS[$w]}; [[ -n $c ]] && codes+=$c ;;
+    esac
+  done
+  if (( ${#codes} )); then
+    REPLY=$'\e['${(j:;:)codes}m
+  else
+    REPLY=
+  fi
+}
+
+_zshex_class() {
+  emulate -L zsh
+  local p=$1 b=${1:t}
+  if [[ -L $p ]]; then
+    if [[ -e $p ]]; then REPLY=Symlink; else REPLY=BrokenLink; fi
+  elif [[ -d $p ]]; then
+    if [[ $b == .* && $b != . && $b != .. ]]; then REPLY=HiddenDir; else REPLY=Dir; fi
+  elif [[ -S $p || -p $p || -b $p || -c $p ]]; then
+    REPLY=Special
+  elif [[ -f $p && -x $p ]]; then
+    REPLY=Exec
+  elif [[ $b == .* ]]; then
+    REPLY=HiddenFile
+  else
+    REPLY=File
+  fi
+}
+
+_zshex_ind() {
+  case $1 in
+    Dir|HiddenDir)       REPLY=/ ;;
+    Exec)                REPLY='*' ;;
+    Symlink|BrokenLink)  REPLY=@ ;;
+    *)                   REPLY= ;;
+  esac
+}
+
+_zshex_human() {
+  emulate -L zsh
+  local -F v=$1
+  local -a u=(B KB MB GB TB PB)
+  local -i i=1
+  while (( v >= 1024 && i < ${#u} )); do
+    (( v /= 1024, i++ ))
+  done
+  if (( i == 1 )); then
+    REPLY="${1}B"
+  else
+    printf -v REPLY '%.1f%s' $v ${u[i]}
+  fi
+}
+
+_zshex_ago() {
+  emulate -L zsh
+  local -i s=$1
+  (( s < 0 )) && s=0
+  if (( s < 60 )); then
+    REPLY="${s}s ago"
+  elif (( s < 3600 )); then
+    REPLY="$(( s / 60 ))m ago"
+  elif (( s < 86400 )); then
+    REPLY="$(( s / 3600 ))h ago"
+  elif (( s < 2592000 )); then
+    REPLY="$(( s / 86400 ))d ago"
+  elif (( s < 31536000 )); then
+    REPLY="$(( s / 2592000 ))mo ago"
+  else
+    REPLY="$(( s / 31536000 ))y ago"
+  fi
+}
+
+_zshex_tmux_sync() {
+  emulate -L zsh
+  [[ -n $TMUX ]] || return 0
+  command tmux refresh-client -S 2>/dev/null
+}
+
+_zshex_paint() {
+  emulate -L zsh
+  local s=${sg[$1]}
+  if [[ -n $s && -n $2 ]]; then
+    REPLY=$s$2$'\e[0m'
+  else
+    REPLY=$2
+  fi
+}
+
+_zshex_load() {
+  emulate -L zsh
+  cands=(); lc=()
+  local -a rn rr keys sorted fixed rest order w
+  local -A st
+  local -a c_perm c_nl c_own c_grp c_size c_age c_tgt c_hid c_nostat
+  local -i i j=0 k dot=0 dotdot=0 now=$EPOCHSECONDS
+  local -i wnl=0 wown=0 wgrp=0 wsize=0 wage=0
+  local name cls tcls target ind mt p1 p2 p3 seg tseg mt_s nostat
+
+  rn=("${(@f)$(command ls -1a 2>/dev/null)}")
+  rr=("${(@f)$(command ls -la 2>/dev/null)}")
+  rr=("${(@)rr[2,-1]}")
+  (( ${#rn} == ${#rr} )) || rr=()
+
+  for (( i = 1; i <= ${#rn}; i++ )); do
+    case ${rn[i]} in
+      .)  dot=$i ;;
+      ..) dotdot=$i ;;
+      *)  keys+=("${rn[i]}"$'\t'$i) ;;
+    esac
+  done
+  sorted=("${(@oi)keys}")
+  rest=("${(@)sorted##*$'\t'}")
+  (( dot ))    && fixed+=($dot)
+  (( dotdot )) && fixed+=($dotdot)
+  order=($fixed $rest)
+
+  names=(); rows=()
+  for k in $order; do
+    (( j++ ))
+    name=${rn[k]}
+    w=(${=rr[k]})
+    (( ${#w} >= 4 )) || w=('----------' 0 '?' '?')
+    c_perm[j]=${w[1][1,10]}
+    c_nl[j]=${w[2]}
+    c_own[j]=${w[3]}
+    c_grp[j]=${w[4]}
+
+    st=()
+    zstat -L -F %s -H st -- "$name" 2>/dev/null
+    mt_s=${st[mtime]//[^0-9]/}
+    _zshex_human ${st[size]:-0};                 c_size[j]=$REPLY
+    _zshex_ago $(( now - ${mt_s:-$now} ));       c_age[j]=$REPLY
+
+    # no usable stat data -> paint the whole info block as one highlight
+    nostat=0
+    (( ${#w} >= 4 )) || nostat=1
+    [[ ${c_perm[j]} == '----------' ]] && nostat=1
+    [[ ${c_own[j]} == '?' || ${c_grp[j]} == '?' ]] && nostat=1
+    [[ -z ${st[size]} && -z ${st[mtime]} ]] && nostat=1
+    c_nostat[j]=$nostat
+
+    c_tgt[j]=
+    if [[ -L $name && ${rr[k]} == *" -> "* ]]; then
+      c_tgt[j]=${rr[k]#*" -> "}
+    fi
+    if [[ $name == .* && $name != . && $name != .. ]]; then c_hid[j]=1; else c_hid[j]=0; fi
+
+    (( ${#c_nl[j]}   > wnl   )) && wnl=${#c_nl[j]}
+    (( ${#c_own[j]}  > wown  )) && wown=${#c_own[j]}
+    (( ${#c_grp[j]}  > wgrp  )) && wgrp=${#c_grp[j]}
+    (( ${#c_size[j]} > wsize )) && wsize=${#c_size[j]}
+    (( ${#c_age[j]}  > wage  )) && wage=${#c_age[j]}
+    names+=("$name")
+  done
+
+  for (( j = 1; j <= ${#names}; j++ )); do
+    name=${names[j]}
+    if (( c_nostat[j] )); then
+      mt=NoStat
+    elif (( c_hid[j] )); then
+      mt=Hidden
+    else
+      mt=Visible
+    fi
+
+    # one joined, right-aligned info block: perms links owner group size age
+    p1="${c_perm[j]}  ${(l:$wnl:)c_nl[j]} ${(r:$wown:)c_own[j]} ${(r:$wgrp:)c_grp[j]} ${(l:$wsize:)c_size[j]}  ${(l:$wage:)c_age[j]} "
+    _zshex_paint $mt "$p1"; p1=$REPLY
+
+    _zshex_class "$name"; cls=$REPLY
+    _zshex_ind $cls;      ind=$REPLY
+    [[ $name == . || $name == .. ]] && ind=
+    _zshex_paint $cls "$name$ind"; seg=$REPLY
+
+    if [[ -n ${c_tgt[j]} ]]; then
+      target=${c_tgt[j]}
+      if [[ -e $target ]]; then _zshex_class "$target"; tcls=$REPLY; else tcls=BrokenLink; fi
+      _zshex_ind $tcls
+      _zshex_paint $tcls "$target$REPLY"; tseg=$REPLY
+      rows+=("${p1}${seg} -> ${tseg}")
+    else
+      rows+=("${p1}${seg}")
+    fi
+  done
+  n=${#names}; sel=1; top=1
+}
+
+_zshex_cd() {
+  emulate -L zsh
+  local from=$PWD
+  builtin cd -- "$1" 2>/dev/null || return
+  if [[ $PWD != "$from" ]]; then
+    hb+=($from)
+    hf=()
+    _zshex_tmux_sync
+  fi
+  _zshex_load
+}
+
+_zshex_hist() {
+  emulate -L zsh
+  local cur=$PWD target
+  if [[ $1 == back ]]; then
+    (( $#hb )) || return
+    target=$hb[-1]
+    builtin cd -- $target 2>/dev/null || return
+    hb[-1]=()
+    hf+=($cur)
+  else
+    (( $#hf )) || return
+    target=$hf[-1]
+    builtin cd -- $target 2>/dev/null || return
+    hf[-1]=()
+    hb+=($cur)
+  fi
+  _zshex_tmux_sync
+  _zshex_load
+}
+
+_zshex_select() {
+  emulate -L zsh
+  local -i k
+  for (( k = 1; k <= n; k++ )); do
+    if [[ ${names[k]} == "$1" ]]; then sel=$k; return; fi
+  done
+}
+
+_zshex_up() {
+  emulate -L zsh
+  [[ $PWD == / ]] && return
+  local from=${PWD:t}
+  _zshex_cd .. && _zshex_select "$from"
+}
+
+_zshex_goto() {
+  emulate -L zsh
+  if [[ -d $1 ]]; then
+    _zshex_cd "$1"
+  elif [[ -e $1 ]]; then
+    _zshex_cd "${1:h}" && _zshex_select "${1:t}"
+  fi
+}
+
+_zshex_follow() {
+  emulate -L zsh
+  [[ -L ${names[sel]} ]] || return
+  _zshex_goto "${names[sel]:A}"
+}
+
+_zshex_candidates() {
+  if (( $+commands[fd] )); then
+    command fd -H -E .git 2>/dev/null
+  else
+    command find . -mindepth 1 -not -path '*/.git/*' 2>/dev/null
+  fi
+}
+
+_zshex_find() {
+  emulate -L zsh
+  local q=${(L)1}
+  local -i k i step=$2
+  for (( i = 1; i <= n; i++ )); do
+    k=$(( ((sel - 1 + step * i) % n + n) % n + 1 ))
+    if [[ ${(L)names[k]} == *"$q"* ]]; then sel=$k; return 0; fi
+  done
+  return 1
+}
+
+_zshex_search() {
+  emulate -L zsh
+  local q=$1 p
+  if [[ $q == */* ]]; then
+    p=$(_zshex_candidates | fzf -i --exact --query="$q" --select-1 --exit-0 --height=40% --reverse) || return
+    p=${p#./}
+    p=${p%/}
+    [[ -n $p ]] && _zshex_goto "$PWD/$p"
+  else
+    _zshex_find "$q" $2
+  fi
+}
+
+_zshex_live() {
+  emulate -L zsh
+  local ql=${(L)1}
+  local -i idx cnt
+  hint=
+  if [[ $1 == */* ]]; then
+    if (( ! ${#cands} )); then
+      cands=("${(@f)$(_zshex_candidates)}")
+      cands=("${(@)cands#./}")
+      lc=("${(@L)cands}")
+    fi
+    cnt=${#${(M)lc:#*${(b)ql}*}}
+    idx=${lc[(i)*${(b)ql}*]}
+    if (( cnt )); then
+      hint="  -> ${cands[idx]} ($cnt)"
+    else
+      hint="  (no match)"
+    fi
+  else
+    sel=$(( s0 - sd ))
+    _zshex_find "$1" $sd || sel=$s0
+  fi
+}
+
+_zshex_input() {
+  emulate -L zsh
+  local c q=
+  local -i s0=$sel
+  while true; do
+    sel=$s0
+    hint=
+    [[ -n $q ]] && _zshex_live "$q"
+    _zshex_draw "$1$q$hint"
+    read -rsk 1 c || { sel=$s0; return 1 }
+    case $c in
+      $'\n'|$'\r')     break ;;
+      $'\e')           sel=$s0; return 1 ;;
+      $'\x7f'|$'\x08') q=${q%?} ;;
+      $'\x15')         q= ;;
+      [[:cntrl:]])     ;;
+      *)               q+=$c ;;
+    esac
+  done
+  REPLY=$q
+}
+
+_zshex_draw() {
+  emulate -L zsh
+  local line buf foot=$1
+  local -i i
+  win=$(( LINES - 3 )); (( win < 3 )) && win=3
+  (( sel > n )) && sel=n
+  (( sel < 1 )) && sel=1
+  (( sel < top )) && top=sel
+  (( sel >= top + win )) && top=$(( sel - win + 1 ))
+
+  _zshex_paint Header " zshex  ${PWD/#$HOME/~}  [$sel/$n]"
+  buf=$'\e[?25l\e[H\e[2K'"$REPLY"$'\n'
+  for (( i = top; i < top + win; i++ )); do
+    if (( i <= n )); then
+      line=${rows[i]}
+      if (( i == sel )); then
+        line=${line//$'\e[0m'/$'\e[0m\e[7m'}
+        buf+=$'\e[2K\e[7m'"$line"$'\e[K\e[0m\n'
+      else
+        buf+=$'\e[2K'"$line"$'\n'
+      fi
+    else
+      buf+=$'\e[2K\n'
+    fi
+  done
+  if [[ -n $foot ]]; then
+    REPLY=$foot
+  else
+    _zshex_paint Info " j/k move  enter open  - up  ~ home  gd follow  / ? search  ^O ^I back/fwd  q close"
+  fi
+  buf+=$'\e[2K'"$REPLY"$'\e[J'
+  [[ -n $foot ]] && buf+=$'\e[?25h'
+  print -rn -- "$buf"
+}
+
+zshex-widget() {
+  emulate -L zsh
+  setopt local_options no_nomatch
+
+  local -a names rows hb hf cands lc
+  local -A sg
+  local key k2 k3 name line buf k sq hint
+  local -i sel=1 top=1 win n=0 i sd=1 s0=0
+
+  for k in ${(k)ZSHEX_PROFILE}; do
+    _zshex_sgr "${ZSHEX_PROFILE[$k]}"
+    sg[$k]=$REPLY
+  done
+
+  _zshex_load
+
+  print -rn -- $'\e[?1049h\e[?25l\e[?7l'
+  {
+    while true; do
+      _zshex_draw
+
+      read -rsk 1 key || break
+      case $key in
+        $'\x05'|q) break ;;
+        j) (( sel < n )) && (( sel++ )) ;;
+        k) (( sel > 1 )) && (( sel-- )) ;;
+        g)
+          read -rsk 1 k2
+          case $k2 in
+            g) sel=1 ;;
+            d) _zshex_follow ;;
+          esac
+          ;;
+        G) sel=$n ;;
+        '~') _zshex_cd ~ ;;
+        -|h|$'\x7f'|$'\x08') _zshex_up ;;
+        $'\x0f') _zshex_hist back ;;
+        $'\t') _zshex_hist fwd ;;
+        '/'|'?')
+          [[ $key == / ]] && sd=1 || sd=-1
+          if _zshex_input $key; then
+            sq=$REPLY
+            [[ $sq == */* ]] && _zshex_search "$sq" $sd
+          fi
+          ;;
+        n) [[ -n $sq ]] && _zshex_search "$sq" $sd ;;
+        N) [[ -n $sq ]] && _zshex_search "$sq" $(( -sd )) ;;
+        l|$'\n'|$'\r')
+          name=${names[sel]}
+          if [[ -d $name ]]; then
+            _zshex_cd "$name"
+          elif [[ -n $name ]]; then
+            LBUFFER+="${(q)name} "
+            break
+          fi
+          ;;
+        $'\e')
+          if read -rsk 1 -t 0.05 k2; then
+            if [[ $k2 == '[' || $k2 == 'O' ]]; then
+              k3=
+              while read -rsk 1 -t 0.05 k; do
+                k3+=$k
+                [[ $k == [A-Za-z~] ]] && break
+              done
+              case $k3 in
+                A) (( sel > 1 )) && (( sel-- )) ;;
+                B) (( sel < n )) && (( sel++ )) ;;
+                D) _zshex_up ;;
+                C) [[ -d ${names[sel]} ]] && _zshex_cd "${names[sel]}" ;;
+                5~) sel=$(( sel - win )) ;;
+                6~) sel=$(( sel + win )) ;;
+                H|1~|7~) sel=1 ;;
+                F|4~|8~) sel=$n ;;
+                '105;5u') _zshex_hist fwd ;;
+              esac
+            fi
+          else
+            break
+          fi
+          ;;
+      esac
+    done
+  } always {
+    print -rn -- $'\e[?7h\e[?25h\e[?1049l'
+  }
+  _zshex_tmux_sync
+  zle reset-prompt
+}
+
+zle -N zshex-widget
+bindkey '^e' zshex-widget
+bindkey -M viins '^e' zshex-widget 2>/dev/null
+bindkey -M vicmd '^e' zshex-widget 2>/dev/null

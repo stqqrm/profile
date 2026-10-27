@@ -10,12 +10,12 @@ distro=" ${ID:-} ${ID_LIKE:-} "
 if [[ $distro == *" arch "* ]]; then
     sudo pacman -S --needed terminus-font gvim tmux fish zsh \
         zsh-autosuggestions zsh-syntax-highlighting \
-        nodejs npm clang universal-ctags fzf fastfetch
+        nodejs npm clang universal-ctags fzf fastfetch alacritty
 elif [[ $distro == *" debian "* ]]; then
     sudo apt-get update
     sudo apt-get install -y xfonts-terminus vim-gtk3 tmux fish zsh \
         zsh-autosuggestions zsh-syntax-highlighting \
-        nodejs npm clang universal-ctags fzf fastfetch
+        nodejs npm clang universal-ctags fzf fastfetch alacritty
 else
     echo "Unsupported distro: ${PRETTY_NAME:-unknown} (need Arch or Debian based)" >&2
     exit 1
