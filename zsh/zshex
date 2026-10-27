@@ -18,18 +18,29 @@
 #   j / Down      move down            k / Up       move up
 #   PgDn / PgUp   page down / up       gg / G       first / last
 #   ~             go home
-#   Enter / l / Right   dir: cd into it   file: insert its name into the prompt
+#   Enter / l / Right   dir: cd into it   file: open in vim (back here after)
+#   i             insert the selected name into the prompt and close
 #   - / h / Left / Backspace            go to parent directory
 #   gd            follow a symlink to its target (file: select it in its dir)
 #   Ctrl-O / Ctrl-I (Tab)               directory history back / forward
-#   / and ?       search forward / backward, n / N repeat
+#   / and ?       search (live filter), n / N repeat
+#   Ctrl-Z        resume a suspended job (runs your shell's ^Z binding)
 #   Ctrl-E / q / Esc                    close
 #
+# Ctrl-Z inside the editor suspends it and returns to zshex at the same
+# spot; press Ctrl-Z in zshex to resume it.
+#
+# Editor: files open with vim. Override before sourcing, e.g.
+#   ZSHEX_EDITOR="nvim"
+#
 # Search (case-insensitive):
-#   "name"      matches entries in the current directory
-#   "dir/name"  searches all subdirectories (fd or find + fzf); a file result
-#               jumps to its directory and selects it, a directory result is
-#               entered
+#   Up/Down/PgUp/PgDn move inside the filtered list.
+#   The search prompt is on the top line. While you type, the list shows
+#   ONLY matching entries of the current directory, ordered exact match,
+#   then prefix matches, then substring matches.
+#   Enter opens the highlighted match directly (dir: cd, file: vim).
+#   Esc cancels and restores the previous selection.
+#   n / N then cycle forward / backward through all substring matches.
 # ---------------------------------------------------------------------------
 # Colors
 #   black red green yellow blue magenta cyan white
@@ -75,10 +86,10 @@ _zshex_default() { (( ${+ZSHEX_PROFILE[$1]} )) || ZSHEX_PROFILE[$1]=$2 }
 
 _zshex_default Header       "brightred"
 _zshex_default Info         "brightblack"
-_zshex_default Dir          "brightblue"
+_zshex_default Dir          "blue"
 _zshex_default File         "default"
 _zshex_default HiddenDir    "blue"
-_zshex_default HiddenFile   "white"
+_zshex_default HiddenFile   "default"
 _zshex_default Visible      "default"
 _zshex_default Hidden       "default"
 _zshex_default NoStat       "brightblack"
@@ -87,6 +98,9 @@ _zshex_default Symlink      "cyan"
 _zshex_default BrokenLink   "brightred"
 _zshex_default Special      "magenta"
 unfunction _zshex_default
+
+# set when the editor was suspended (Ctrl-Z): selection to restore on reopen
+typeset -g _zshex_resume=
 
 _zshex_sgr() {
   emulate -L zsh
@@ -191,8 +205,7 @@ _zshex_paint() {
 
 _zshex_load() {
   emulate -L zsh
-  cands=(); lc=()
-  local -a rn rr keys sorted fixed rest order w
+  local -a rn rr hidden_keys visible_keys sorted fixed hidden_order rest order w
   local -A st
   local -a c_perm c_nl c_own c_grp c_size c_age c_tgt c_hid c_nostat
   local -i i j=0 k dot=0 dotdot=0 now=$EPOCHSECONDS
@@ -208,14 +221,24 @@ _zshex_load() {
     case ${rn[i]} in
       .)  dot=$i ;;
       ..) dotdot=$i ;;
-      *)  keys+=("${rn[i]}"$'\t'$i) ;;
+      *)
+        if [[ ${rn[i]} == .* ]]; then
+          hidden_keys+=("${rn[i]}"$'\t'$i)
+        else
+          visible_keys+=("${rn[i]}"$'\t'$i)
+        fi
+        ;;
     esac
   done
-  sorted=("${(@oi)keys}")
+
+  # Keep dot entries first, then sort hidden and visible names separately.
+  sorted=("${(@oi)hidden_keys}")
+  hidden_order=("${(@)sorted##*$'\t'}")
+  sorted=("${(@oi)visible_keys}")
   rest=("${(@)sorted##*$'\t'}")
   (( dot ))    && fixed+=($dot)
   (( dotdot )) && fixed+=($dotdot)
-  order=($fixed $rest)
+  order=($fixed $hidden_order $rest)
 
   names=(); rows=()
   for k in $order; do
@@ -279,8 +302,8 @@ _zshex_load() {
       target=${c_tgt[j]}
       if [[ -e $target ]]; then _zshex_class "$target"; tcls=$REPLY; else tcls=BrokenLink; fi
       _zshex_ind $tcls
-      _zshex_paint $tcls "$target$REPLY"; tseg=$REPLY
-      rows+=("${p1}${seg} -> ${tseg}")
+      _zshex_paint $cls "$target$REPLY"; tseg=$REPLY
+      rows+=("${p1}${seg} > ${tseg}")
     else
       rows+=("${p1}${seg}")
     fi
@@ -350,87 +373,163 @@ _zshex_follow() {
   _zshex_goto "${names[sel]:A}"
 }
 
-_zshex_candidates() {
-  if (( $+commands[fd] )); then
-    command fd -H -E .git 2>/dev/null
-  else
-    command find . -mindepth 1 -not -path '*/.git/*' 2>/dev/null
-  fi
-}
-
-_zshex_find() {
+# Cycle through all substring matches (used by n / N).
+_zshex_search() {
   emulate -L zsh
   local q=${(L)1}
   local -i k i step=$2
+  (( n > 0 )) || return 1
   for (( i = 1; i <= n; i++ )); do
     k=$(( ((sel - 1 + step * i) % n + n) % n + 1 ))
-    if [[ ${(L)names[k]} == *"$q"* ]]; then sel=$k; return 0; fi
+    if [[ ${(L)names[k]} == *"$q"* ]]; then
+      sel=$k
+      return 0
+    fi
   done
   return 1
 }
 
-_zshex_search() {
-  emulate -L zsh
-  local q=$1 p
-  if [[ $q == */* ]]; then
-    p=$(_zshex_candidates | fzf -i --exact --query="$q" --select-1 --exit-0 --height=40% --reverse) || return
-    p=${p#./}
-    p=${p%/}
-    [[ -n $p ]] && _zshex_goto "$PWD/$p"
-  else
-    _zshex_find "$q" $2
-  fi
-}
-
-_zshex_live() {
-  emulate -L zsh
-  local ql=${(L)1}
-  local -i idx cnt
-  hint=
-  if [[ $1 == */* ]]; then
-    if (( ! ${#cands} )); then
-      cands=("${(@f)$(_zshex_candidates)}")
-      cands=("${(@)cands#./}")
-      lc=("${(@L)cands}")
-    fi
-    cnt=${#${(M)lc:#*${(b)ql}*}}
-    idx=${lc[(i)*${(b)ql}*]}
-    if (( cnt )); then
-      hint="  -> ${cands[idx]} ($cnt)"
-    else
-      hint="  (no match)"
-    fi
-  else
-    sel=$(( s0 - sd ))
-    _zshex_find "$1" $sd || sel=$s0
-  fi
-}
-
+# Live filter: shows only matching entries while typing.
+# Up/Down/PgUp/PgDn/Home/End (and Ctrl-N/Ctrl-P) move inside the filtered list.
+# Enter returns the highlighted match (the widget then opens it), Esc restores.
 _zshex_input() {
   emulate -L zsh
-  local c q=
-  local -i s0=$sel
+  local c q= cand lq name k2 k3 k
+  local -a fn=("${names[@]}") fr=("${rows[@]}") idx exact pre sub
+  local -i i s0=$sel t0=$top n0=$n redo=1
+
   while true; do
-    sel=$s0
-    hint=
-    [[ -n $q ]] && _zshex_live "$q"
-    _zshex_draw "$1$q$hint"
-    read -rsk 1 c || { sel=$s0; return 1 }
+    if (( redo )); then
+      lq=${(L)q}
+      idx=(); exact=(); pre=(); sub=()
+      for (( i = 1; i <= n0; i++ )); do
+        cand=${(L)fn[i]}
+        if [[ -z $q ]]; then
+          idx+=$i
+        elif [[ $cand == "$lq" ]]; then
+          exact+=$i
+        elif [[ $cand == "$lq"* ]]; then
+          pre+=$i
+        elif [[ $cand == *"$lq"* ]]; then
+          sub+=$i
+        fi
+      done
+      [[ -n $q ]] && idx=($exact $pre $sub)
+
+      names=(); rows=()
+      for i in $idx; do
+        names+=("${fn[i]}")
+        rows+=("${fr[i]}")
+      done
+      n=${#names}; sel=1; top=1
+      redo=0
+    fi
+
+    _zshex_draw "$1$q"
+    if ! read -rsk 1 c; then
+      names=("${fn[@]}"); rows=("${fr[@]}"); n=$n0; sel=$s0; top=$t0
+      return 1
+    fi
     case $c in
-      $'\n'|$'\r')     break ;;
-      $'\e')           sel=$s0; return 1 ;;
-      $'\x7f'|$'\x08') q=${q%?} ;;
-      $'\x15')         q= ;;
+      $'\n'|$'\r')
+        name=${names[sel]}
+        names=("${fn[@]}"); rows=("${fr[@]}"); n=$n0; sel=$s0; top=$t0
+        if [[ -n $name ]]; then
+          _zshex_select "$name"
+          REPLY=$q
+          return 0
+        fi
+        return 1
+        ;;
+      $'\e')
+        if read -rsk 1 -t 0.05 k2 && [[ $k2 == '[' || $k2 == 'O' ]]; then
+          k3=
+          while read -rsk 1 -t 0.05 k; do
+            k3+=$k
+            [[ $k == [A-Za-z~] ]] && break
+          done
+          case $k3 in
+            A) (( sel > 1 )) && (( sel-- )) ;;
+            B) (( sel < n )) && (( sel++ )) ;;
+            5~) sel=$(( sel - win )) ;;
+            6~) sel=$(( sel + win )) ;;
+            H|1~|7~) sel=1 ;;
+            F|4~|8~) sel=$n ;;
+          esac
+        else
+          names=("${fn[@]}"); rows=("${fr[@]}"); n=$n0; sel=$s0; top=$t0
+          return 1
+        fi
+        ;;
+      $'\x0e') (( sel < n )) && (( sel++ )) ;;
+      $'\x10') (( sel > 1 )) && (( sel-- )) ;;
+      $'\x7f'|$'\x08') q=${q%?}; redo=1 ;;
+      $'\x15')         q=;       redo=1 ;;
       [[:cntrl:]])     ;;
-      *)               q+=$c ;;
+      *)               q+=$c;    redo=1 ;;
     esac
   done
-  REPLY=$q
+}
+
+# Open a file in the editor (default vim; override with ZSHEX_EDITOR).
+# Leaves the alternate screen while the editor runs, then comes back.
+# Sets `stopped` (a local of zshex-widget) if the editor was suspended with
+# Ctrl-Z; the widget then reopens itself at the same spot (see zshex-widget).
+_zshex_open() {
+  emulate -L zsh
+  local -a ed
+  local saved junk
+  local -i alt=1
+  ed=(${=ZSHEX_EDITOR:-vim})
+  # vim: stay on zshex's alternate screen (vim must not switch screens
+  # itself). Job notices like "[1] + suspended" are then printed on that
+  # screen and wiped by the next redraw instead of leaking into the shell.
+  if [[ ${ed[1]:t} == (vim|vi) ]]; then
+    alt=0
+    ed+=(--cmd 'set t_ti= t_te=')
+  fi
+  # remember the terminal mode zle is using: zsh resets the tty to its
+  # "cooked" mode after a foreground job, which makes our key reads block
+  saved=$(stty -g </dev/tty 2>/dev/null)
+  print -rn -- $'\e[?7h\e[?25h'
+  (( alt )) && print -rn -- $'\e[?1049l'
+  zle -I 2>/dev/null
+  # eval, so the job text reads "command vim -- file" (not "command $ed ...").
+  # Job-list helpers (e.g. an auto-bg hook keyed on the command name) then
+  # recognise the editor; otherwise a suspended editor gets `bg`'d and
+  # bounces between "continued" and "suspended (tty output)".
+  eval "command ${(q@)ed} -- ${(q)1} </dev/tty"
+  local -i rc=$?
+  [[ -n $saved ]] && stty "$saved" </dev/tty 2>/dev/null
+  # drop leftover input (e.g. late terminal replies sent to the editor)
+  while read -rsk 1 -t 0.02 junk </dev/tty; do :; done
+  (( alt )) && print -rn -- $'\e[?1049h'
+  print -rn -- $'\e[0m\e[2J\e[?25l\e[?7l'
+  if (( rc > 128 )); then
+    case ${signals[rc-127]} in
+      TSTP|TTIN|TTOU) stopped=1 ;;
+    esac
+  fi
+}
+
+# Enter: directory -> cd into it, file -> open in editor and come back.
+_zshex_enter() {
+  emulate -L zsh
+  local name=${names[sel]}
+  [[ -n $name ]] || return
+  if [[ -d $name ]]; then
+    _zshex_cd "$name"
+  else
+    _zshex_open "$name"
+    (( stopped )) && return
+    _zshex_load
+    _zshex_select "$name"
+  fi
 }
 
 _zshex_draw() {
   emulate -L zsh
-  local line buf foot=$1
+  local line buf hdr foot=$1
   local -i i
   win=$(( LINES - 3 )); (( win < 3 )) && win=3
   (( sel > n )) && sel=n
@@ -438,8 +537,13 @@ _zshex_draw() {
   (( sel < top )) && top=sel
   (( sel >= top + win )) && top=$(( sel - win + 1 ))
 
-  _zshex_paint Header " zshex  ${PWD/#$HOME/~}  [$sel/$n]"
-  buf=$'\e[?25l\e[H\e[2K'"$REPLY"$'\n'
+  if [[ -n $foot ]]; then
+    _zshex_paint Header "$foot  [$n matches]"
+  else
+    _zshex_paint Header " zshex  ${PWD/#$HOME/~}  [$sel/$n]"
+  fi
+  hdr=$REPLY
+  buf=$'\e[?25l\e[H\e[2K'"$hdr"$'\n'
   for (( i = top; i < top + win; i++ )); do
     if (( i <= n )); then
       line=${rows[i]}
@@ -454,12 +558,13 @@ _zshex_draw() {
     fi
   done
   if [[ -n $foot ]]; then
-    REPLY=$foot
+    _zshex_paint Info " enter open  up/down pgup/pgdn move  esc cancel  (matches only)"
   else
-    _zshex_paint Info " j/k move  enter open  - up  ~ home  gd follow  / ? search  ^O ^I back/fwd  q close"
+    _zshex_paint Info " j/k move  enter open (vim)  i insert name  - up  ~ home  gd follow  / ? search  ^O ^I back/fwd  ^Z fg  q close"
   fi
   buf+=$'\e[2K'"$REPLY"$'\e[J'
-  [[ -n $foot ]] && buf+=$'\e[?25h'
+  # put the cursor at the end of the search prompt on the top line
+  [[ -n $foot ]] && buf+=$'\e[1;'$(( ${#foot} + 1 ))$'H\e[?25h'
   print -rn -- "$buf"
 }
 
@@ -467,10 +572,10 @@ zshex-widget() {
   emulate -L zsh
   setopt local_options no_nomatch
 
-  local -a names rows hb hf cands lc
+  local -a names rows hb hf
   local -A sg
-  local key k2 k3 name line buf k sq hint
-  local -i sel=1 top=1 win n=0 i sd=1 s0=0
+  local key k2 k3 name line buf k sq hint pending=
+  local -i sel=1 top=1 win n=0 i sd=1 s0=0 stopped=0
 
   for k in ${(k)ZSHEX_PROFILE}; do
     _zshex_sgr "${ZSHEX_PROFILE[$k]}"
@@ -478,6 +583,10 @@ zshex-widget() {
   done
 
   _zshex_load
+  if [[ -n $_zshex_resume ]]; then
+    _zshex_select "$_zshex_resume"
+    _zshex_resume=
+  fi
 
   print -rn -- $'\e[?1049h\e[?25l\e[?7l'
   {
@@ -487,6 +596,12 @@ zshex-widget() {
       read -rsk 1 key || break
       case $key in
         $'\x05'|q) break ;;
+        $'\x1a')                       # Ctrl-Z: close and let the shell's ^Z (fg) run
+          if (( ${#jobtexts} )); then
+            pending=$'\x1a'
+            break
+          fi
+          ;;
         j) (( sel < n )) && (( sel++ )) ;;
         k) (( sel > 1 )) && (( sel-- )) ;;
         g)
@@ -505,16 +620,15 @@ zshex-widget() {
           [[ $key == / ]] && sd=1 || sd=-1
           if _zshex_input $key; then
             sq=$REPLY
-            [[ $sq == */* ]] && _zshex_search "$sq" $sd
+            _zshex_enter
           fi
           ;;
         n) [[ -n $sq ]] && _zshex_search "$sq" $sd ;;
         N) [[ -n $sq ]] && _zshex_search "$sq" $(( -sd )) ;;
-        l|$'\n'|$'\r')
+        l|$'\n'|$'\r') _zshex_enter ;;
+        i)
           name=${names[sel]}
-          if [[ -d $name ]]; then
-            _zshex_cd "$name"
-          elif [[ -n $name ]]; then
+          if [[ -n $name ]]; then
             LBUFFER+="${(q)name} "
             break
           fi
@@ -531,7 +645,7 @@ zshex-widget() {
                 A) (( sel > 1 )) && (( sel-- )) ;;
                 B) (( sel < n )) && (( sel++ )) ;;
                 D) _zshex_up ;;
-                C) [[ -d ${names[sel]} ]] && _zshex_cd "${names[sel]}" ;;
+                C) _zshex_enter ;;
                 5~) sel=$(( sel - win )) ;;
                 6~) sel=$(( sel + win )) ;;
                 H|1~|7~) sel=1 ;;
@@ -544,12 +658,18 @@ zshex-widget() {
           fi
           ;;
       esac
+      if (( stopped )); then            # editor was suspended: reopen right here
+        _zshex_resume=${names[sel]}
+        pending=$'\x05'
+        break
+      fi
     done
   } always {
     print -rn -- $'\e[?7h\e[?25h\e[?1049l'
   }
   _zshex_tmux_sync
   zle reset-prompt
+  [[ -n $pending ]] && zle -U "$pending"
 }
 
 zle -N zshex-widget
