@@ -24,6 +24,7 @@
 #   gd            follow a symlink to its target (file: select it in its dir)
 #   Ctrl-O / Ctrl-I (Tab)               directory history back / forward
 #   / and ?       search (live filter), n / N repeat
+#   f             recursive fzf find (all subdirectories)
 #   Ctrl-Z        resume a suspended job (runs your shell's ^Z binding)
 #   Ctrl-E / q / Esc                    close
 #
@@ -41,6 +42,15 @@
 #   Enter opens the highlighted match directly (dir: cd, file: vim).
 #   Esc cancels and restores the previous selection.
 #   n / N then cycle forward / backward through all substring matches.
+#
+# fzf find (needs fzf installed; otherwise f / Ctrl-F use the local search):
+#   f opens it directly. Ctrl-F inside the search prompt toggles between
+#   the local filter and the recursive fzf search.
+#   Results come from `find` (skipping .git, capped at 100k entries),
+#   ranked by `fzf --filter`, top 200 shown, same row format as the
+#   normal listing but with the relative path instead of the name.
+#   Enter on a directory cd's into it. Enter on a file cd's to its parent
+#   directory and opens it in the editor.
 # ---------------------------------------------------------------------------
 # Colors
 #   black red green yellow blue magenta cyan white
@@ -311,6 +321,66 @@ _zshex_load() {
   n=${#names}; sel=1; top=1
 }
 
+# Format an arbitrary list of (relative) paths into names/rows, using the
+# same row layout as _zshex_load. Used by the recursive fzf search.
+_zshex_fmt() {
+  emulate -L zsh
+  local -a paths=("$@") c_perm c_nl c_own c_grp c_size c_age c_tgt c_mt
+  local -A st
+  local -i j now=$EPOCHSECONDS
+  local -i wnl=0 wown=0 wgrp=0 wsize=0 wage=0
+  local p b p1 cls tcls ind seg tseg mt_s target
+
+  names=(); rows=()
+
+  for (( j = 1; j <= ${#paths}; j++ )); do
+    p=${paths[j]}
+    st=()
+    zstat -L -s -F %s -H st -- "$p" 2>/dev/null
+    c_perm[j]=${st[mode]:----------}
+    c_nl[j]=${st[nlink]:-0}
+    c_own[j]=${st[uid]:-?}
+    c_grp[j]=${st[gid]:-?}
+    mt_s=${st[mtime]//[^0-9]/}
+    _zshex_human ${st[size]:-0};            c_size[j]=$REPLY
+    _zshex_ago $(( now - ${mt_s:-$now} ));  c_age[j]=$REPLY
+    c_tgt[j]=${st[link]}
+
+    b=${p:t}
+    if [[ -z ${st[mode]} ]]; then c_mt[j]=NoStat
+    elif [[ $b == .* ]]; then c_mt[j]=Hidden
+    else c_mt[j]=Visible
+    fi
+
+    (( ${#c_nl[j]}   > wnl   )) && wnl=${#c_nl[j]}
+    (( ${#c_own[j]}  > wown  )) && wown=${#c_own[j]}
+    (( ${#c_grp[j]}  > wgrp  )) && wgrp=${#c_grp[j]}
+    (( ${#c_size[j]} > wsize )) && wsize=${#c_size[j]}
+    (( ${#c_age[j]}  > wage  )) && wage=${#c_age[j]}
+    names+=("$p")
+  done
+
+  for (( j = 1; j <= ${#names}; j++ )); do
+    p=${names[j]}
+    p1="${c_perm[j]}  ${(l:$wnl:)c_nl[j]} ${(r:$wown:)c_own[j]} ${(r:$wgrp:)c_grp[j]} ${(l:$wsize:)c_size[j]}  ${(l:$wage:)c_age[j]} "
+    _zshex_paint ${c_mt[j]} "$p1"; p1=$REPLY
+
+    _zshex_class "$p"; cls=$REPLY
+    _zshex_ind $cls;   ind=$REPLY
+    _zshex_paint $cls "$p$ind"; seg=$REPLY
+
+    if [[ -n ${c_tgt[j]} ]]; then
+      target=${c_tgt[j]}
+      if [[ -e ${p:h}/$target || -e $target ]]; then _zshex_class "$target"; tcls=$REPLY; else tcls=BrokenLink; fi
+      _zshex_ind $tcls
+      _zshex_paint $cls "$target$REPLY"; tseg=$REPLY
+      rows+=("${p1}${seg} > ${tseg}")
+    else
+      rows+=("${p1}${seg}")
+    fi
+  done
+}
+
 _zshex_cd() {
   emulate -L zsh
   local from=$PWD
@@ -392,40 +462,63 @@ _zshex_search() {
 # Live filter: shows only matching entries while typing.
 # Up/Down/PgUp/PgDn/Home/End (and Ctrl-N/Ctrl-P) move inside the filtered list.
 # Enter returns the highlighted match (the widget then opens it), Esc restores.
+# Ctrl-F toggles recursive fzf mode (results from all subdirectories, same
+# row format). Second arg "1" starts in fzf mode.
+# In fzf mode, Enter sets fzf_pick (a path relative to $PWD, a local of the
+# widget); in local mode fzf_pick stays empty.
 _zshex_input() {
   emulate -L zsh
-  local c q= cand lq name k2 k3 k
-  local -a fn=("${names[@]}") fr=("${rows[@]}") idx exact pre sub
-  local -i i s0=$sel t0=$top n0=$n redo=1
+  local c q= cand lq name k2 k3 k tag=
+  local -a fn=("${names[@]}") fr=("${rows[@]}") idx exact pre sub cands m
+  local -i i s0=$sel t0=$top n0=$n redo=1 rec=${2:-0}
+
+  (( $+commands[fzf] )) || rec=0
+  fzf_pick=
 
   while true; do
-    if (( redo )); then
-      lq=${(L)q}
-      idx=(); exact=(); pre=(); sub=()
-      for (( i = 1; i <= n0; i++ )); do
-        cand=${(L)fn[i]}
-        if [[ -z $q ]]; then
-          idx+=$i
-        elif [[ $cand == "$lq" ]]; then
-          exact+=$i
-        elif [[ $cand == "$lq"* ]]; then
-          pre+=$i
-        elif [[ $cand == *"$lq"* ]]; then
-          sub+=$i
-        fi
-      done
-      [[ -n $q ]] && idx=($exact $pre $sub)
+    if (( rec && ! ${#cands} )); then
+      cands=("${(@f)$(command find . -name .git -prune -o ! -name . -print 2>/dev/null | head -n 100000)}")
+      cands=("${(@)cands#./}")
+    fi
 
-      names=(); rows=()
-      for i in $idx; do
-        names+=("${fn[i]}")
-        rows+=("${fr[i]}")
-      done
+    if (( redo )); then
+      if (( rec )); then
+        if [[ -z $q ]]; then
+          m=("${(@)cands[1,200]}")
+        else
+          m=("${(@f)$(print -rl -- "${cands[@]}" | command fzf -i --filter="$q" 2>/dev/null | head -n 200)}")
+        fi
+        m=("${(@)m:#}")
+        _zshex_fmt "${m[@]}"
+      else
+        lq=${(L)q}
+        idx=(); exact=(); pre=(); sub=()
+        for (( i = 1; i <= n0; i++ )); do
+          cand=${(L)fn[i]}
+          if [[ -z $q ]]; then
+            idx+=$i
+          elif [[ $cand == "$lq" ]]; then
+            exact+=$i
+          elif [[ $cand == "$lq"* ]]; then
+            pre+=$i
+          elif [[ $cand == *"$lq"* ]]; then
+            sub+=$i
+          fi
+        done
+        [[ -n $q ]] && idx=($exact $pre $sub)
+
+        names=(); rows=()
+        for i in $idx; do
+          names+=("${fn[i]}")
+          rows+=("${fr[i]}")
+        done
+      fi
       n=${#names}; sel=1; top=1
       redo=0
     fi
 
-    _zshex_draw "$1$q"
+    tag=; (( rec )) && tag='fzf '
+    _zshex_draw "$tag$1$q"
     if ! read -rsk 1 c; then
       names=("${fn[@]}"); rows=("${fr[@]}"); n=$n0; sel=$s0; top=$t0
       return 1
@@ -435,11 +528,21 @@ _zshex_input() {
         name=${names[sel]}
         names=("${fn[@]}"); rows=("${fr[@]}"); n=$n0; sel=$s0; top=$t0
         if [[ -n $name ]]; then
-          _zshex_select "$name"
+          if (( rec )); then
+            fzf_pick=$name
+          else
+            _zshex_select "$name"
+          fi
           REPLY=$q
           return 0
         fi
         return 1
+        ;;
+      $'\x06')                          # Ctrl-F: toggle recursive fzf mode
+        if (( $+commands[fzf] )); then
+          (( rec = !rec ))
+          redo=1
+        fi
         ;;
       $'\e')
         if read -rsk 1 -t 0.05 k2 && [[ $k2 == '[' || $k2 == 'O' ]]; then
@@ -558,9 +661,9 @@ _zshex_draw() {
     fi
   done
   if [[ -n $foot ]]; then
-    _zshex_paint Info " enter open  up/down pgup/pgdn move  esc cancel  (matches only)"
+    _zshex_paint Info " enter open  up/down pgup/pgdn move  ^F fzf/local  esc cancel  (matches only)"
   else
-    _zshex_paint Info " j/k move  enter open (vim)  i insert name  - up  ~ home  gd follow  / ? search  ^O ^I back/fwd  ^Z fg  q close"
+    _zshex_paint Info " j/k move  enter open (vim)  i insert name  - up  ~ home  gd follow  / ? search  f fzf find  ^O ^I back/fwd  ^Z fg  q close"
   fi
   buf+=$'\e[2K'"$REPLY"$'\e[J'
   # put the cursor at the end of the search prompt on the top line
@@ -574,7 +677,7 @@ zshex-widget() {
 
   local -a names rows hb hf
   local -A sg
-  local key k2 k3 name line buf k sq hint pending=
+  local key k2 k3 name line buf k sq hint pending= fzf_pick=
   local -i sel=1 top=1 win n=0 i sd=1 s0=0 stopped=0
 
   for k in ${(k)ZSHEX_PROFILE}; do
@@ -616,11 +719,27 @@ zshex-widget() {
         -|h|$'\x7f'|$'\x08') _zshex_up ;;
         $'\x0f') _zshex_hist back ;;
         $'\t') _zshex_hist fwd ;;
-        '/'|'?')
-          [[ $key == / ]] && sd=1 || sd=-1
-          if _zshex_input $key; then
-            sq=$REPLY
-            _zshex_enter
+        '/'|'?'|f)
+          fzf_pick=
+          local -i start_rec=0
+          if [[ $key == f ]]; then
+            sd=1; start_rec=1
+            _zshex_input / 1 && sq=$REPLY || start_rec=-1
+          else
+            [[ $key == '?' ]] && sd=-1 || sd=1
+            _zshex_input $key 0 && sq=$REPLY || start_rec=-1
+          fi
+          if (( start_rec != -1 )); then
+            if [[ -n $fzf_pick ]]; then
+              if [[ -d $fzf_pick ]]; then
+                _zshex_cd "$fzf_pick"
+              else
+                _zshex_cd "${fzf_pick:h}" && _zshex_select "${fzf_pick:t}"
+                _zshex_enter
+              fi
+            else
+              _zshex_enter
+            fi
           fi
           ;;
         n) [[ -n $sq ]] && _zshex_search "$sq" $sd ;;
