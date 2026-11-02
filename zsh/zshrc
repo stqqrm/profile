@@ -1,6 +1,7 @@
 # /etc/zsh/zshrc
 export XDG_RUNTIME_DIR=/run/user/$UID
 
+export ZSHEX_EDITOR=vim
 source /etc/zsh/zshex
 
 setopt EXTENDED_GLOB INTERACTIVE_COMMENTS NO_BEEP PROMPT_SUBST
