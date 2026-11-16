@@ -1,69 +1,34 @@
-# zshex - zsh wrapper for the zshex C++ binary (Ctrl-E)
+# zshex.zsh - zsh wrapper for the zshex C++ binary
 #
-# Setup (in ~/.zshrc):
-#   export ZSHEX_EDITOR=vim          # optional, default: vim
+# Set before sourcing (in ~/.zshrc):
+#   export ZSHEX_BIN=~/repository/zshex/zshex     # path to the binary
+#   export ZSHEX_EDITOR=vim                       # editor command (default: vim)
+#   export ZSHEX_BIND='^E'                        # key that opens (and closes) the UI
 #   source /path/to/zshex.zsh
 #
-# Binary:  ~/.local/bin/zshex
-# Config:  ~/.config/zshex/auth     (optional, for a private repo: one header
-#          line such as `Authorization: token github_pat_XXXX`, chmod 600)
-#
-# If the binary is missing, Ctrl-E downloads zshex.cpp and builds it.
-# Run `zshex-update` by hand to pick up a newer version later.
+# ZSHEX_BIND is read when this file is sourced. ZSHEX_EDITOR is read every
+# time a file is opened, so it can be changed later.
 #
 # Protocol (binary stdout -> temp file):
 #   CD:<path>     directory the UI ended in (we cd there)
 #   EDIT:<path>   open this file in $ZSHEX_EDITOR, then relaunch the UI
-#
-# If you lack permission on a file (not readable, or not writable and not
-# yours) and sudo accepts you, the editor is run through sudo.
 
+: ${ZSHEX_BIN:=$HOME/.local/share/zshex/zshex-bin}
 : ${ZSHEX_EDITOR:=vim}
-: ${ZSHEX_URL:=https://raw.githubusercontent.com/stqqrm/zshex/main/src/zshex.cpp}
+: ${ZSHEX_BIND:='^E'}
 
-typeset -g _ZSHEX_BIN=$HOME/.local/bin/zshex
-typeset -g _ZSHEX_CONF=$HOME/.config/zshex
-
-_zshex_sha() {
-  if (( $+commands[sha256sum] )); then
-    command sha256sum | cut -d' ' -f1
-  else
-    command shasum -a 256 | cut -d' ' -f1
-  fi
-}
-
-# Download zshex.cpp and compile it from stdin. Skips the build when the
-# source is unchanged and the binary exists. The new binary is built under a
-# temporary name and moved into place, so a running or working binary is
-# never overwritten by a failed build.
 zshex-update() {
-  local bin=$_ZSHEX_BIN src hash
-  local -a auth=()
-  [[ -r $_ZSHEX_CONF/auth ]] && auth=(-H "@$_ZSHEX_CONF/auth")
+  local url=https://raw.githubusercontent.com/stqqrm/zshex/refs/heads/main/src/zshex.cpp
+  local bin=${~ZSHEX_BIN} src hash
+  mkdir -p ${bin:h} || return
 
-  (( $+commands[curl] )) || { print -u2 "zshex: curl not found"; return 1 }
-  (( $+commands[g++] ))  || { print -u2 "zshex: g++ not found"; return 1 }
-  mkdir -p -- ${bin:h} $_ZSHEX_CONF || return 1
+  src=$(curl -fsSL $url) || return 1
+  hash=${$(print -r -- "$src" | sha256sum)[1]}
+  [[ -x $bin && -r $bin.sha256 && $(<$bin.sha256) == $hash ]] && return   # unchanged
 
-  src=$(command curl -fsSL $auth $ZSHEX_URL) && [[ -n $src ]] || {
-    print -u2 "zshex: download failed: $ZSHEX_URL"
-    return 1
-  }
-
-  hash=$(print -r -- $src | _zshex_sha)
-  if [[ -x $bin && -r $bin.sha256 && $(<$bin.sha256) == $hash ]]; then
-    return 0                       # unchanged
-  fi
-
-  print -u2 "zshex: building $bin ..."
-  if print -r -- $src | command g++ -std=c++17 -O2 -x c++ -o $bin.new - &&
-     command mv -f -- $bin.new $bin; then
-    print -r -- $hash > $bin.sha256
-  else
-    command rm -f -- $bin.new
-    print -u2 "zshex: build failed"
-    return 1
-  fi
+  print -r -- "$src" | g++ -std=c++17 -O2 -x c++ -o $bin.new - \
+    && mv -f $bin.new $bin \
+    && print -r -- $hash > $bin.sha256
 }
 
 # Ask sudo itself: `sudo -v` succeeds silently if credentials are cached or
@@ -78,28 +43,44 @@ _zshex_is_sudoer() {
 _zshex_edit() {
   local f=$1
   local -a ed=(${=ZSHEX_EDITOR})
-  if [[ ! -r $f || ( ! -w $f && ! -O $f ) ]] && _zshex_is_sudoer; then
+
+  # Need elevated rights if we can't read the file, or can't write to it
+  if [[ ! -r $f || ! -w $f ]] && _zshex_is_sudoer; then
     command sudo "${ed[@]}" -- $f </dev/tty
   else
     command "${ed[@]}" -- $f </dev/tty
   fi
 }
 
-zshex-widget() {
-  local bin=$_ZSHEX_BIN
-  if [[ ! -x $bin ]]; then
-    zle -I
-    zshex-update
+# Translate a zsh key notation like ^E into the control byte the binary
+# receives. Prints 0 (no close key) for anything that isn't a single Ctrl key.
+_zshex_close_key() {
+  local b=$1 c
+  if [[ $b == '^?' ]]; then print 127; return; fi
+  if [[ $b == '^'[A-Za-z@\[\\\]^_] ]]; then
+    c=${(U)b[2]}
+    print $(( #c & 31 ))
+  else
+    print 0
   fi
-  [[ -f $bin && -x $bin ]] || { zle -M "zshex: '$bin' is not an executable file (build failed?)"; return }
+}
+
+zshex-widget() {
+  local bin=${~ZSHEX_BIN}
+  if [[ $bin == */* ]]; then
+    [[ -f $bin && -x $bin ]] || { zle -M "zshex: '$bin' is not an executable file"; return }
+  else
+    (( $+commands[$bin] )) || { zle -M "zshex: '$bin' not found in PATH"; return }
+  fi
 
   local tmp state line dir file pick rc
+  local ck=$(_zshex_close_key $ZSHEX_BIND)
   tmp=$(mktemp) || return
   state=$(mktemp) || { command rm -f -- $tmp; return }
 
   zle -I
   while true; do
-    local -a args=(--state $state)
+    local -a args=(--state $state --close-key $ck)
     [[ -n $pick ]] && args+=(--select $pick)
     pick=
 
@@ -130,6 +111,6 @@ zshex-widget() {
 }
 
 zle -N zshex-widget
-bindkey '^e' zshex-widget
-bindkey -M viins '^e' zshex-widget 2>/dev/null
-bindkey -M vicmd '^e' zshex-widget 2>/dev/null
+bindkey "$ZSHEX_BIND" zshex-widget
+bindkey -M viins "$ZSHEX_BIND" zshex-widget 2>/dev/null
+bindkey -M vicmd "$ZSHEX_BIND" zshex-widget 2>/dev/null
