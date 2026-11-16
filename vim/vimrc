@@ -43,15 +43,7 @@ set encoding=utf-8
 filetype plugin indent on
 syntax on
 
-" Bind ^C :wq!
-function! Done()
-    if &readonly || bufname('%') ==# ''
-        execute 'q!'
-    else
-        execute 'wq'
-    endif
-endfunction
-nnoremap <C-c> :call Done()<CR>   
+nnoremap <C-c> :q!<CR>
 
 "command! W execute 'silent! write !sudo tee % >/dev/null' | edit!
 "cnoreabbrev <expr> w getcmdtype() == ':' && getcmdline() ==# 'w' ? 'W' : 'w'
